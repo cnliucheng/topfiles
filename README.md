@@ -80,4 +80,4 @@ server {
 ## 作者信息
 
 程序设计：刘承  
-邮箱：chrislc@gmail.com
+邮箱：wusky1988@gmail.com

@@ -8,7 +8,7 @@ export default {
   light: 'Light',
   dark: 'Dark',
   download: 'Download File',
-  footerCredit: "Designed by: 刘承 chrislc{'@'}gmail.com",
+  footerCredit: "Designed by: 刘承 wusky1988{'@'}gmail.com",
   licenseName: 'GNU AGPL-3.0',
   licenseNotice:
     'License: GNU AGPL-3.0 (modification, redistribution, and commercial use are allowed; copyright and license notices must be retained, and derivative source code must be disclosed).',
