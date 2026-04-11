@@ -1,0 +1,243 @@
+:root {
+  --bg-page: #f3f4f6;
+  --bg-card: #f9fafb;
+  --bg-panel: #ffffff;
+  --text-main: #111827;
+  --text-sub: #4b5563;
+  --border: #d1d5db;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-soft: #eff6ff;
+  --primary-text: #1d4ed8;
+  --editor-bg: #ffffff;
+  --editor-text: #111827;
+  --editor-gutter-bg: #f8fafc;
+  --editor-gutter-text: #64748b;
+  --editor-gutter-border: #e2e8f0;
+  --editor-active-gutter: #eef2ff;
+  --editor-caret: #2563eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text-main);
+  background: var(--bg-page);
+}
+
+:root[data-theme='dark'] {
+  --bg-page: #0f1115;
+  --bg-card: #171a21;
+  --bg-panel: #1f2430;
+  --text-main: #e5e7eb;
+  --text-sub: #9ca3af;
+  --border: #353b4a;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-soft: #1e293b;
+  --primary-text: #93c5fd;
+  --editor-bg: #1f2430;
+  --editor-text: #e5e7eb;
+  --editor-gutter-bg: #171b24;
+  --editor-gutter-text: #8f9bb3;
+  --editor-gutter-border: #303746;
+  --editor-active-gutter: #232b3a;
+  --editor-caret: #60a5fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-main);
+}
+
+.page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2vw, 16px);
+}
+
+.app {
+  width: 80vw;
+  height: 80dvh;
+  max-width: 1200px;
+  max-height: 900px;
+  min-height: 480px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.brand-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.icon-btn:focus-visible,
+.download-btn:focus-visible,
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.icon-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 180px 120px;
+  gap: 10px;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.field input,
+.field select,
+.download-btn {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0 10px;
+  font-size: 14px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+}
+
+.download-btn {
+  cursor: pointer;
+  border-color: var(--primary);
+  color: #ffffff;
+  background: var(--primary);
+  font-weight: 600;
+}
+
+.download-btn:hover {
+  background: var(--primary-hover);
+}
+
+.editor-wrap {
+  flex: 1;
+  min-height: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.app-footer {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.license-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.license-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 880px) {
+  .app {
+    width: 92vw;
+    height: 80dvh;
+    min-height: 360px;
+  }
+
+  .top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .top-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+}
