@@ -14,6 +14,9 @@ export default {
   importUrlPlaceholder: 'https://example.com/demo.json',
   importUseJina: 'Use r.jina.ai mode (auto-strip metadata header)',
   importUrlRequired: 'Enter a remote URL first, or use the local file button.',
+  importInvalidUrl: 'Only http/https remote URLs are supported.',
+  importTimeout: 'Remote loading timed out. Please try again.',
+  importTooLarge: 'File is too large. Maximum allowed is {max}.',
   chooseLocalFile: 'Choose Local File',
   loadFromUrl: 'Load URL',
   importing: 'Loading...',
@@ -22,6 +25,15 @@ export default {
     'Import failed. This may be caused by CORS restrictions or an inaccessible URL. Try a public direct text link.',
   download: 'Download File',
   clearDraft: 'Clear Draft',
+  privacyModeOn: 'Privacy: On',
+  privacyModeOff: 'Privacy: Off',
+  privacyDialogTitle: 'Privacy Mode Notice',
+  privacyDialogDesc: 'Please confirm whether to switch privacy mode.',
+  privacyPoint1: 'When enabled: new drafts are not saved locally and existing local draft is removed.',
+  privacyPoint2: 'When disabled: automatic save and restore are enabled again.',
+  privacyPoint3: 'This setting is stored only in your current browser.',
+  privacyEnable: 'Enable',
+  privacyDisable: 'Disable',
   footerCredit: "Designed by: 刘承 wusky1988{'@'}gmail.com",
   licenseName: 'GNU AGPL-3.0',
   licenseNotice:
@@ -36,6 +48,9 @@ export default {
     js: 'JavaScript',
     ts: 'TypeScript',
     m3u: 'M3U Playlist',
-    m3u8: 'M3U8 Playlist'
+    m3u8: 'M3U8 Playlist',
+    yaml: 'YAML',
+    yml: 'YML',
+    conf: 'Config File'
   }
 }
