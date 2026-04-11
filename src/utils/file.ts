@@ -1,22 +1,46 @@
-import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
+import { FILE_TYPES, FILE_TYPE_SET, type FileExtension } from '../constants/fileTypes'
+
+const INVALID_FILE_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g
+
+function normalizeRawName(name: string): string {
+  return name.trim().replace(INVALID_FILE_CHARS, '_').replace(/[ ]+$/g, '').replace(/[. ]+$/g, '')
+}
+
+function extractExtension(name: string): string | null {
+  const dotIndex = name.lastIndexOf('.')
+  if (dotIndex <= 0 || dotIndex === name.length - 1) return null
+  return name.slice(dotIndex + 1).toLowerCase()
+}
 
 export function sanitizeBaseName(name: string, ext: FileExtension): string {
-  const trimmed = name.trim()
+  const trimmed = normalizeRawName(name)
   if (!trimmed) return 'untitled'
 
   const suffix = `.${ext}`
-  const withoutSuffix = trimmed.toLowerCase().endsWith(suffix) ? trimmed.slice(0, -suffix.length) : trimmed
-  const sanitized = withoutSuffix
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
-    .replace(/[. ]+$/g, '')
-    .trim()
+  const withoutSuffix = trimmed.toLowerCase().endsWith(suffix)
+    ? trimmed.slice(0, -suffix.length)
+    : trimmed
 
-  return sanitized || 'untitled'
+  return withoutSuffix || 'untitled'
+}
+
+export function inferSupportedExtension(name: string): FileExtension | null {
+  const normalized = normalizeRawName(name)
+  if (!normalized) return null
+
+  const ext = extractExtension(normalized)
+  if (!ext || !FILE_TYPE_SET.has(ext as FileExtension)) return null
+  return ext as FileExtension
 }
 
 export function buildFileName(name: string, ext: FileExtension): string {
-  const baseName = sanitizeBaseName(name, ext)
-  return `${baseName}.${ext}`
+  const normalized = normalizeRawName(name)
+  if (!normalized) return `untitled.${ext}`
+
+  const explicitExt = extractExtension(normalized)
+  if (explicitExt) return normalized
+
+  return `${normalized}.${ext}`
 }
 
 export function getMimeType(ext: FileExtension): string {

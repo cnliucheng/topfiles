@@ -7,7 +7,21 @@ export default {
   theme: '主题',
   light: '明亮',
   dark: '暗黑',
+  importSource: '导入文件',
+  importDialogTitle: '导入文件内容',
+  importDialogDesc: '输入远程 URL 读取内容，或直接选择本地文件。',
+  importUrlLabel: '远程文件 URL',
+  importUrlPlaceholder: 'https://example.com/demo.json',
+  importUseJina: '使用 r.jina.ai 模式（自动清理头部元信息）',
+  importUrlRequired: '请先输入远程文件 URL，或使用本地文件按钮。',
+  chooseLocalFile: '选择本地文件',
+  loadFromUrl: '读取 URL',
+  importing: '读取中...',
+  cancel: '取消',
+  importFailed:
+    '导入失败。可能是跨域限制（CORS）或链接不可访问。可尝试可公开直链的文本地址。',
   download: '下载文件',
+  clearDraft: '清空草稿',
   footerCredit: "程序设计：刘承 wusky1988{'@'}gmail.com",
   licenseName: 'GNU AGPL-3.0',
   licenseNotice: '授权协议：GNU AGPL-3.0（允许修改、发布与商用，分发时需保留版权与许可声明并公开衍生源代码）。',
@@ -19,6 +33,11 @@ export default {
     php: 'PHP',
     py: 'Python',
     js: 'JavaScript',
-    ts: 'TypeScript'
+    ts: 'TypeScript',
+    m3u: 'M3U 播放列表',
+    m3u8: 'M3U8 播放列表',
+    yaml: 'YAML',
+    yml: 'YML',
+    conf: '配置文件'
   }
 }

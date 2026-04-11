@@ -81,7 +81,11 @@ onMounted(() => {
           backgroundColor: 'var(--editor-bg)',
           color: 'var(--editor-text)'
         },
-        '.cm-scroller': { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace' },
+        '.cm-scroller': {
+          fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+          fontSize: 'clamp(12px, 1.2vw, 14px)',
+          lineHeight: '1.55'
+        },
         '.cm-content': {
           caretColor: 'var(--editor-caret)'
         },

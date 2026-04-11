@@ -7,7 +7,21 @@ export default {
   theme: 'Theme',
   light: 'Light',
   dark: 'Dark',
+  importSource: 'Import File',
+  importDialogTitle: 'Import File Content',
+  importDialogDesc: 'Enter a remote URL to load content, or choose a local file directly.',
+  importUrlLabel: 'Remote File URL',
+  importUrlPlaceholder: 'https://example.com/demo.json',
+  importUseJina: 'Use r.jina.ai mode (auto-strip metadata header)',
+  importUrlRequired: 'Enter a remote URL first, or use the local file button.',
+  chooseLocalFile: 'Choose Local File',
+  loadFromUrl: 'Load URL',
+  importing: 'Loading...',
+  cancel: 'Cancel',
+  importFailed:
+    'Import failed. This may be caused by CORS restrictions or an inaccessible URL. Try a public direct text link.',
   download: 'Download File',
+  clearDraft: 'Clear Draft',
   footerCredit: "Designed by: 刘承 wusky1988{'@'}gmail.com",
   licenseName: 'GNU AGPL-3.0',
   licenseNotice:
@@ -20,6 +34,8 @@ export default {
     php: 'PHP',
     py: 'Python',
     js: 'JavaScript',
-    ts: 'TypeScript'
+    ts: 'TypeScript',
+    m3u: 'M3U Playlist',
+    m3u8: 'M3U8 Playlist'
   }
 }

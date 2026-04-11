@@ -4,14 +4,21 @@ import { useI18n } from 'vue-i18n'
 import CodeEditor from './components/CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from './constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from './i18n'
-import { buildFileName, downloadFile, getMimeType } from './utils/file'
+import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from './utils/file'
 
 const fileName = ref('untitled')
 const ext = ref<FileExtension>('txt')
 const content = ref('')
+const localFileInputRef = ref<HTMLInputElement | null>(null)
+const showImportModal = ref(false)
+const importUrl = ref('')
+const importError = ref('')
+const importLoading = ref(false)
+const useJinaMode = ref(false)
 
 const { t, locale } = useI18n()
 const THEME_STORAGE_KEY = 'file-builder-theme'
+const DRAFT_STORAGE_KEY = 'file-builder-draft-v1'
 
 type ThemeMode = 'light' | 'dark'
 const themeMode = ref<ThemeMode>('light')
@@ -39,12 +46,70 @@ function safeSetStorage(key: string, value: string): void {
   }
 }
 
+function safeRemoveStorage(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Ignore storage remove failures in restricted environments.
+  }
+}
+
+function loadDraft(): void {
+  const raw = safeGetStorage(DRAFT_STORAGE_KEY)
+  if (!raw) return
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<{
+      fileName: string
+      ext: string
+      content: string
+    }>
+    if (typeof parsed.fileName === 'string') fileName.value = parsed.fileName
+    if (typeof parsed.content === 'string') content.value = parsed.content
+    if (
+      typeof parsed.ext === 'string' &&
+      FILE_TYPES.some((item) => item.ext === parsed.ext)
+    ) {
+      ext.value = parsed.ext as FileExtension
+    }
+  } catch {
+    // Ignore invalid draft data.
+  }
+}
+
+function saveDraft(): void {
+  safeSetStorage(
+    DRAFT_STORAGE_KEY,
+    JSON.stringify({
+      fileName: fileName.value,
+      ext: ext.value,
+      content: content.value
+    })
+  )
+}
+
 watch(
   () => activeLocale.value,
   (nextLocale) => {
     safeSetStorage(LOCALE_STORAGE_KEY, nextLocale)
   }
 )
+
+watch(
+  () => fileName.value,
+  (nextName) => {
+    const detected = inferSupportedExtension(nextName)
+    if (detected && detected !== ext.value) {
+      ext.value = detected
+    }
+  }
+)
+
+loadDraft()
+
+watch([fileName, ext, content], () => {
+  saveDraft()
+})
 
 function detectTheme(): ThemeMode {
   const saved = safeGetStorage(THEME_STORAGE_KEY)
@@ -78,9 +143,158 @@ function toggleLocale(): void {
 }
 
 function onDownload(): void {
-  const finalFileName = buildFileName(fileName.value, ext.value)
-  const mime = getMimeType(ext.value)
+  const detectedExt = inferSupportedExtension(fileName.value)
+  const finalExt = detectedExt ?? ext.value
+  const finalFileName = buildFileName(fileName.value, finalExt)
+  const mime = getMimeType(finalExt)
   downloadFile(content.value, finalFileName, mime)
+}
+
+function onClearDraft(): void {
+  fileName.value = 'untitled'
+  ext.value = 'txt'
+  content.value = ''
+  safeRemoveStorage(DRAFT_STORAGE_KEY)
+}
+
+function applyImportedContent(name: string, text: string): void {
+  content.value = text
+  fileName.value = name || 'untitled'
+  const detected = inferSupportedExtension(fileName.value)
+  if (detected) {
+    ext.value = detected
+  }
+}
+
+function buildImportCandidates(url: string): string[] {
+  const encoded = encodeURIComponent(url)
+
+  return [
+    url,
+    `https://api.allorigins.win/raw?url=${encoded}`,
+    `https://cors.isomorphic-git.org/${url}`
+  ]
+}
+
+function toJinaUrl(url: string): string {
+  const withScheme = /^https?:\/\//i.test(url) ? url : `https://${url}`
+  return `https://r.jina.ai/http://${withScheme.replace(/^https?:\/\//i, '')}`
+}
+
+function stripJinaHeader(text: string): string {
+  const normalized = text.replace(/\r\n/g, '\n')
+  const marker = 'Markdown Content:\n'
+  const markerIndex = normalized.indexOf(marker)
+  if (markerIndex >= 0) {
+    return normalized.slice(markerIndex + marker.length).trimStart()
+  }
+
+  const lines = normalized.split('\n')
+  const urlSourceIndex = lines.findIndex((line) => line.startsWith('URL Source:'))
+  if (urlSourceIndex >= 0) {
+    const firstContent = lines.findIndex((line, idx) => idx > urlSourceIndex && line.trim() !== '')
+    if (firstContent > -1) return lines.slice(firstContent).join('\n')
+  }
+
+  return normalized
+}
+
+async function fetchTextWithFallback(url: string): Promise<string> {
+  if (useJinaMode.value) {
+    const response = await fetch(toJinaUrl(url))
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    const raw = await response.text()
+    return stripJinaHeader(raw)
+  }
+
+  const candidates = buildImportCandidates(url)
+  let lastError: unknown = null
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      return await response.text()
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError ?? new Error('Import failed')
+}
+
+async function importFromUrl(url: string): Promise<void> {
+  const text = await fetchTextWithFallback(url)
+  let parsedName = 'remote-file'
+  try {
+    const { pathname } = new URL(url)
+    const last = pathname.split('/').filter(Boolean).pop()
+    if (last) parsedName = decodeURIComponent(last)
+  } catch {
+    // Keep fallback file name.
+  }
+
+  applyImportedContent(parsedName, text)
+}
+
+async function onUnifiedImport(): Promise<void> {
+  importUrl.value = ''
+  importError.value = ''
+  importLoading.value = false
+  useJinaMode.value = false
+  showImportModal.value = true
+}
+
+function closeImportModal(): void {
+  showImportModal.value = false
+  importLoading.value = false
+}
+
+async function onImportFromUrl(): Promise<void> {
+  const url = importUrl.value.trim()
+  if (!url) {
+    importError.value = t('importUrlRequired')
+    return
+  }
+
+  importLoading.value = true
+  importError.value = ''
+  try {
+    await importFromUrl(url)
+    closeImportModal()
+  } catch {
+    importError.value = t('importFailed')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+function onPickLocalFile(): void {
+  importError.value = ''
+  localFileInputRef.value?.click()
+}
+
+async function onLocalFileChange(event: Event): Promise<void> {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  importLoading.value = true
+  importError.value = ''
+  try {
+    const text = await file.text()
+    applyImportedContent(file.name, text)
+    closeImportModal()
+  } catch {
+    importError.value = t('importFailed')
+  } finally {
+    importLoading.value = false
+    target.value = ''
+  }
 }
 </script>
 
@@ -94,6 +308,42 @@ function onDownload(): void {
         </div>
 
         <div class="top-actions">
+          <button
+            type="button"
+            class="icon-btn"
+            :aria-label="t('importSource')"
+            :title="t('importSource')"
+            @click="onUnifiedImport"
+          >
+            <svg
+              class="icon-svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 14V4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="M8.5 7.5L12 4L15.5 7.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M4 14.5V17C4 18.1 4.9 19 6 19H18C19.1 19 20 18.1 20 17V14.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+
           <button
             type="button"
             class="icon-btn"
@@ -198,6 +448,10 @@ function onDownload(): void {
         <button type="button" class="download-btn" @click="onDownload">
           {{ t('download') }}
         </button>
+
+        <button type="button" class="secondary-btn" @click="onClearDraft">
+          {{ t('clearDraft') }}
+        </button>
       </header>
 
       <section class="editor-wrap">
@@ -219,5 +473,58 @@ function onDownload(): void {
         </p>
       </footer>
     </main>
+
+    <div
+      v-if="showImportModal"
+      class="modal-mask"
+      role="presentation"
+      @click.self="closeImportModal"
+    >
+      <div class="import-modal" role="dialog" aria-modal="true" :aria-label="t('importDialogTitle')">
+        <h3 class="import-title">{{ t('importDialogTitle') }}</h3>
+        <p class="import-desc">{{ t('importDialogDesc') }}</p>
+
+        <label class="import-label" for="import-url">{{ t('importUrlLabel') }}</label>
+        <input
+          id="import-url"
+          v-model="importUrl"
+          class="import-input"
+          type="url"
+          :placeholder="t('importUrlPlaceholder')"
+          @keydown.enter.prevent="onImportFromUrl"
+        />
+
+        <label class="import-switch">
+          <input v-model="useJinaMode" type="checkbox" />
+          <span>{{ t('importUseJina') }}</span>
+        </label>
+
+        <p v-if="importError" class="import-error">{{ importError }}</p>
+
+        <div class="import-actions">
+          <button type="button" class="modal-btn secondary" @click="onPickLocalFile">
+            {{ t('chooseLocalFile') }}
+          </button>
+          <button
+            type="button"
+            class="modal-btn primary"
+            :disabled="importLoading"
+            @click="onImportFromUrl"
+          >
+            {{ importLoading ? t('importing') : t('loadFromUrl') }}
+          </button>
+          <button type="button" class="modal-btn secondary" @click="closeImportModal">
+            {{ t('cancel') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <input
+      ref="localFileInputRef"
+      class="hidden-file-input"
+      type="file"
+      @change="onLocalFileChange"
+    />
   </div>
 </template>
