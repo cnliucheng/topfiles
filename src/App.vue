@@ -23,9 +23,12 @@ const { t, locale } = useI18n()
 const THEME_STORAGE_KEY = 'file-builder-theme'
 const DRAFT_STORAGE_KEY = 'file-builder-draft-v1'
 const PRIVACY_MODE_KEY = 'file-builder-privacy-mode-v1'
+const FONT_SIZE_KEY = 'file-builder-font-size-v1'
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024
 const IMPORT_TIMEOUT_MS = 12_000
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const MIN_FONT_SIZE = 11
+const MAX_FONT_SIZE = 20
 
 type ThemeMode = 'light' | 'dark'
 const themeMode = ref<ThemeMode>('light')
@@ -36,6 +39,7 @@ const activeLocale = computed({
     locale.value = value
   }
 })
+const editorFontSize = ref(13)
 
 function safeGetStorage(key: string): string | null {
   try {
@@ -62,6 +66,11 @@ function safeRemoveStorage(key: string): void {
 }
 
 function loadDraft(): void {
+  const fontSaved = Number(safeGetStorage(FONT_SIZE_KEY) ?? '')
+  if (!Number.isNaN(fontSaved) && fontSaved >= MIN_FONT_SIZE && fontSaved <= MAX_FONT_SIZE) {
+    editorFontSize.value = fontSaved
+  }
+
   const privacySaved = safeGetStorage(PRIVACY_MODE_KEY)
   privacyMode.value = privacySaved === '1'
   if (privacyMode.value) return
@@ -128,6 +137,13 @@ watch(
 )
 
 watch(
+  () => editorFontSize.value,
+  (value) => {
+    safeSetStorage(FONT_SIZE_KEY, String(value))
+  }
+)
+
+watch(
   () => fileName.value,
   (nextName) => {
     const detected = inferSupportedExtension(nextName)
@@ -172,6 +188,14 @@ function toggleTheme(): void {
 
 function toggleLocale(): void {
   activeLocale.value = activeLocale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+}
+
+function decreaseFontSize(): void {
+  editorFontSize.value = Math.max(MIN_FONT_SIZE, editorFontSize.value - 1)
+}
+
+function increaseFontSize(): void {
+  editorFontSize.value = Math.min(MAX_FONT_SIZE, editorFontSize.value + 1)
 }
 
 function onDownload(): void {
@@ -547,6 +571,28 @@ async function onLocalFileChange(event: Event): Promise<void> {
             <span class="icon-state-badge">{{ privacyMode ? 'ON' : 'OFF' }}</span>
           </button>
 
+          <div class="font-size-control" :aria-label="t('fontSize')">
+            <button
+              type="button"
+              class="icon-btn"
+              :aria-label="t('fontSmaller')"
+              :title="t('fontSmaller')"
+              @click="decreaseFontSize"
+            >
+              <span class="font-symbol">A-</span>
+            </button>
+            <span class="font-size-value">{{ editorFontSize }}</span>
+            <button
+              type="button"
+              class="icon-btn"
+              :aria-label="t('fontLarger')"
+              :title="t('fontLarger')"
+              @click="increaseFontSize"
+            >
+              <span class="font-symbol">A+</span>
+            </button>
+          </div>
+
           <button
             type="button"
             class="icon-btn"
@@ -678,7 +724,7 @@ async function onLocalFileChange(event: Event): Promise<void> {
       </header>
 
       <section class="editor-wrap">
-        <CodeEditor v-model="content" :ext="ext" />
+        <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
       </section>
 
       <footer class="app-footer">

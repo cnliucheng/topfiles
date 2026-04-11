@@ -34,6 +34,9 @@ export default {
   privacyPoint3: 'This setting is stored only in your current browser.',
   privacyEnable: 'Enable',
   privacyDisable: 'Disable',
+  fontSize: 'Font Size',
+  fontSmaller: 'Decrease Font',
+  fontLarger: 'Increase Font',
   footerCredit: "Designed by: 刘承 wusky1988{'@'}gmail.com",
   licenseName: 'GNU AGPL-3.0',
   licenseNotice:

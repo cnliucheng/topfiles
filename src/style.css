@@ -114,6 +114,25 @@ body,
   gap: 8px;
 }
 
+.font-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-symbol {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.font-size-value {
+  min-width: 26px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
 .icon-btn {
   position: relative;
   width: 36px;

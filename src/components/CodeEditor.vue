@@ -9,6 +9,7 @@ import type { FileExtension } from '../constants/fileTypes'
 const props = defineProps<{
   modelValue: string
   ext: FileExtension
+  fontSize: number
 }>()
 
 const emit = defineEmits<{
@@ -83,7 +84,7 @@ onMounted(() => {
         },
         '.cm-scroller': {
           fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
-          fontSize: 'clamp(12px, 1.2vw, 14px)',
+          fontSize: 'var(--editor-font-size, 13px)',
           lineHeight: '1.55'
         },
         '.cm-content': {
@@ -145,7 +146,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="editorRoot" class="editor-root"></div>
+  <div ref="editorRoot" class="editor-root" :style="{ '--editor-font-size': `${props.fontSize}px` }"></div>
 </template>
 
 <style scoped>
