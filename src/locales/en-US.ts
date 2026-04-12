@@ -4,6 +4,9 @@ export default {
   fileNamePlaceholder: 'Enter a file name',
   fileType: 'File Type',
   language: 'Language',
+  about: 'About',
+  aboutTitle: 'About This Project',
+  aboutDesc: 'Developer and license information is shown here.',
   theme: 'Theme',
   light: 'Light',
   dark: 'Dark',
@@ -21,6 +24,7 @@ export default {
   loadFromUrl: 'Load URL',
   importing: 'Loading...',
   cancel: 'Cancel',
+  confirm: 'OK',
   importFailed:
     'Import failed. This may be caused by CORS restrictions or an inaccessible URL. Try a public direct text link.',
   download: 'Download File',

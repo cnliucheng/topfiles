@@ -186,6 +186,7 @@ body,
 .icon-btn:focus-visible,
 .download-btn:focus-visible,
 .secondary-btn:focus-visible,
+.select-trigger:focus-visible,
 .field input:focus-visible,
 .field select:focus-visible,
 .import-input:focus-visible,
@@ -220,6 +221,7 @@ body,
 
 .field input,
 .field select,
+.select-trigger,
 .download-btn,
 .secondary-btn {
   height: 36px;
@@ -229,6 +231,96 @@ body,
   font-size: 14px;
   background: var(--bg-panel);
   color: var(--text-main);
+}
+
+.custom-select {
+  position: relative;
+}
+
+.select-trigger {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 34px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 14%);
+  max-height: 260px;
+  overflow: auto;
+}
+
+.select-option {
+  width: 100%;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  border-radius: 8px;
+  text-align: left;
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.select-option:hover {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.select-option.active {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.field select:hover,
+.field input:hover {
+  border-color: var(--primary);
 }
 
 .download-btn {
@@ -289,16 +381,6 @@ body,
   border: 1px solid var(--border);
   background: var(--bg-panel);
   overflow: hidden;
-}
-
-.app-footer {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-sub);
-}
-
-.app-footer p {
-  margin: 0;
 }
 
 .license-link {
@@ -367,6 +449,16 @@ body,
   margin: 0;
   font-size: 12px;
   color: #ef4444;
+}
+
+.about-content {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+
+.about-content p {
+  margin: 0;
 }
 
 .privacy-list {

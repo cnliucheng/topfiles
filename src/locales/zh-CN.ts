@@ -4,6 +4,9 @@ export default {
   fileNamePlaceholder: '请输入文件名',
   fileType: '文件类型',
   language: '语言',
+  about: '关于',
+  aboutTitle: '关于本项目',
+  aboutDesc: '这里包含开发者信息与授权说明。',
   theme: '主题',
   light: '明亮',
   dark: '暗黑',
@@ -21,6 +24,7 @@ export default {
   loadFromUrl: '读取 URL',
   importing: '读取中...',
   cancel: '取消',
+  confirm: '确定',
   importFailed:
     '导入失败。可能是跨域限制（CORS）或链接不可访问。可尝试可公开直链的文本地址。',
   download: '下载文件',

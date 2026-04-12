@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CodeEditor from './components/CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from './constants/fileTypes'
@@ -18,6 +18,9 @@ const useJinaMode = ref(false)
 const privacyMode = ref(false)
 const showPrivacyModal = ref(false)
 const pendingPrivacyMode = ref(false)
+const showAboutModal = ref(false)
+const showFileTypeMenu = ref(false)
+const fileTypeMenuRef = ref<HTMLElement | null>(null)
 
 const { t, locale } = useI18n()
 const THEME_STORAGE_KEY = 'file-builder-theme'
@@ -159,6 +162,14 @@ watch([fileName, ext, content], () => {
   saveDraft()
 })
 
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
+
 function detectTheme(): ThemeMode {
   const saved = safeGetStorage(THEME_STORAGE_KEY)
   if (saved === 'light' || saved === 'dark') return saved
@@ -188,6 +199,15 @@ function toggleTheme(): void {
 
 function toggleLocale(): void {
   activeLocale.value = activeLocale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+}
+
+function toggleFileTypeMenu(): void {
+  showFileTypeMenu.value = !showFileTypeMenu.value
+}
+
+function selectFileType(nextExt: FileExtension): void {
+  ext.value = nextExt
+  showFileTypeMenu.value = false
 }
 
 function decreaseFontSize(): void {
@@ -225,6 +245,22 @@ function closePrivacyModal(): void {
 function confirmPrivacyMode(): void {
   privacyMode.value = pendingPrivacyMode.value
   showPrivacyModal.value = false
+}
+
+function openAboutModal(): void {
+  showAboutModal.value = true
+}
+
+function closeAboutModal(): void {
+  showAboutModal.value = false
+}
+
+function onDocumentClick(event: MouseEvent): void {
+  const target = event.target as Node | null
+  if (!target || !fileTypeMenuRef.value) return
+  if (!fileTypeMenuRef.value.contains(target)) {
+    showFileTypeMenu.value = false
+  }
 }
 
 function formatBytes(bytes: number): string {
@@ -641,6 +677,26 @@ async function onLocalFileChange(event: Event): Promise<void> {
               />
             </svg>
           </button>
+
+          <button
+            type="button"
+            class="icon-btn"
+            :aria-label="t('about')"
+            :title="t('about')"
+            @click="openAboutModal"
+          >
+            <svg
+              class="icon-svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+              <path d="M12 10.2V16.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <circle cx="12" cy="7.2" r="1" fill="currentColor" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -656,12 +712,31 @@ async function onLocalFileChange(event: Event): Promise<void> {
         </div>
 
         <div class="field">
-          <label for="file-type">{{ t('fileType') }}</label>
-          <select id="file-type" v-model="ext">
-            <option v-for="item in FILE_TYPES" :key="item.ext" :value="item.ext">
-              .{{ item.ext }} ({{ t(`fileTypes.${item.ext}`) }})
-            </option>
-          </select>
+          <label for="file-type-trigger">{{ t('fileType') }}</label>
+          <div ref="fileTypeMenuRef" class="custom-select">
+            <button
+              id="file-type-trigger"
+              type="button"
+              class="select-trigger"
+              :aria-expanded="showFileTypeMenu"
+              @click="toggleFileTypeMenu"
+            >
+              .{{ ext }} ({{ t(`fileTypes.${ext}`) }})
+            </button>
+
+            <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
+              <li v-for="item in FILE_TYPES" :key="item.ext">
+                <button
+                  type="button"
+                  class="select-option"
+                  :class="{ active: ext === item.ext }"
+                  @click="selectFileType(item.ext)"
+                >
+                  .{{ item.ext }} ({{ t(`fileTypes.${item.ext}`) }})
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div class="toolbar-actions">
@@ -726,21 +801,6 @@ async function onLocalFileChange(event: Event): Promise<void> {
       <section class="editor-wrap">
         <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
       </section>
-
-      <footer class="app-footer">
-        <p>{{ t('footerCredit') }}</p>
-        <p>
-          {{ t('licenseNotice') }}
-          <a
-            class="license-link"
-            href="https://www.gnu.org/licenses/agpl-3.0.html"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {{ t('licenseName') }}
-          </a>
-        </p>
-      </footer>
     </main>
 
     <div
@@ -784,6 +844,37 @@ async function onLocalFileChange(event: Event): Promise<void> {
           </button>
           <button type="button" class="modal-btn secondary" @click="closeImportModal">
             {{ t('cancel') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showAboutModal"
+      class="modal-mask"
+      role="presentation"
+      @click.self="closeAboutModal"
+    >
+      <div class="import-modal" role="dialog" aria-modal="true" :aria-label="t('aboutTitle')">
+        <h3 class="import-title">{{ t('aboutTitle') }}</h3>
+        <p class="import-desc">{{ t('aboutDesc') }}</p>
+        <div class="about-content">
+          <p>{{ t('footerCredit') }}</p>
+          <p>
+            {{ t('licenseNotice') }}
+            <a
+              class="license-link"
+              href="https://www.gnu.org/licenses/agpl-3.0.html"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {{ t('licenseName') }}
+            </a>
+          </p>
+        </div>
+        <div class="import-actions">
+          <button type="button" class="modal-btn primary" @click="closeAboutModal">
+            {{ t('confirm') }}
           </button>
         </div>
       </div>
