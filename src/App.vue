@@ -2,7 +2,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CodeEditor from './components/CodeEditor.vue'
-import VisitStats from './components/VisitStats.vue'
 import { FILE_TYPES, type FileExtension } from './constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from './i18n'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from './utils/file'
@@ -907,8 +906,6 @@ function isTextMime(mime: string): boolean {
         </div>
       </section>
     </main>
-
-    <VisitStats />
 
     <div
       v-if="showImportModal"

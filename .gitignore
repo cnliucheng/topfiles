@@ -12,9 +12,6 @@ dist
 dist-ssr
 *.local
 
-# Visit counter data
-visits.json
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
