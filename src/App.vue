@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CodeEditor from './components/CodeEditor.vue'
+import VisitStats from './components/VisitStats.vue'
 import { FILE_TYPES, type FileExtension } from './constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from './i18n'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from './utils/file'
@@ -14,6 +15,7 @@ const showImportModal = ref(false)
 const importUrl = ref('')
 const importError = ref('')
 const importLoading = ref(false)
+const importAbortController = ref<AbortController | null>(null)
 const useJinaMode = ref(false)
 const privacyMode = ref(false)
 const showPrivacyModal = ref(false)
@@ -21,8 +23,68 @@ const pendingPrivacyMode = ref(false)
 const showAboutModal = ref(false)
 const showFileTypeMenu = ref(false)
 const fileTypeMenuRef = ref<HTMLElement | null>(null)
+const importModalRef = ref<HTMLElement | null>(null)
+const aboutModalRef = ref<HTMLElement | null>(null)
+const privacyModalRef = ref<HTMLElement | null>(null)
+const lastFocusedEl = ref<HTMLElement | null>(null)
 
-const { t, locale } = useI18n()
+/* ---- 焦点管理工具 ---- */
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+}
+
+function saveFocus(): void {
+  lastFocusedEl.value = (document.activeElement as HTMLElement) ?? null
+}
+
+function restoreFocus(): void {
+  lastFocusedEl.value?.focus()
+  lastFocusedEl.value = null
+}
+
+async function focusModalContent(el: HTMLElement | null): Promise<void> {
+  if (!el) return
+  await nextTick()
+  const focusable = getFocusableElements(el)
+  if (focusable.length > 0) {
+    focusable[0].focus()
+  } else {
+    el.focus()
+  }
+}
+
+function trapFocus(event: KeyboardEvent, container: HTMLElement): void {
+  if (event.key !== 'Tab') return
+  const focusable = getFocusableElements(container)
+  if (focusable.length === 0) {
+    event.preventDefault()
+    return
+  }
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey) {
+    if (document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    }
+  } else {
+    if (document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+}
+
+const { t, te, locale } = useI18n()
+
+/** 文件类型显示标签：优先 i18n 翻译，缺失时回退到 FILE_TYPES 内置 label */
+function fileTypeLabel(ext: FileExtension): string {
+  const key = `fileTypes.${ext}`
+  return te(key) ? t(key) : (FILE_TYPES.find((f) => f.ext === ext)?.label ?? ext)
+}
 const THEME_STORAGE_KEY = 'file-builder-theme'
 const DRAFT_STORAGE_KEY = 'file-builder-draft-v1'
 const PRIVACY_MODE_KEY = 'file-builder-privacy-mode-v1'
@@ -124,6 +186,7 @@ watch(
   () => activeLocale.value,
   (nextLocale) => {
     safeSetStorage(LOCALE_STORAGE_KEY, nextLocale)
+    document.documentElement.lang = nextLocale
   }
 )
 
@@ -163,6 +226,7 @@ watch([fileName, ext, content], () => {
 })
 
 onMounted(() => {
+  document.documentElement.lang = activeLocale.value
   document.addEventListener('click', onDocumentClick)
 })
 
@@ -210,14 +274,6 @@ function selectFileType(nextExt: FileExtension): void {
   showFileTypeMenu.value = false
 }
 
-function decreaseFontSize(): void {
-  editorFontSize.value = Math.max(MIN_FONT_SIZE, editorFontSize.value - 1)
-}
-
-function increaseFontSize(): void {
-  editorFontSize.value = Math.min(MAX_FONT_SIZE, editorFontSize.value + 1)
-}
-
 function onDownload(): void {
   const detectedExt = inferSupportedExtension(fileName.value)
   const finalExt = detectedExt ?? ext.value
@@ -235,23 +291,30 @@ function onClearDraft(): void {
 
 function togglePrivacyMode(): void {
   pendingPrivacyMode.value = !privacyMode.value
+  saveFocus()
   showPrivacyModal.value = true
+  void focusModalContent(privacyModalRef.value)
 }
 
 function closePrivacyModal(): void {
+  restoreFocus()
   showPrivacyModal.value = false
 }
 
 function confirmPrivacyMode(): void {
   privacyMode.value = pendingPrivacyMode.value
+  restoreFocus()
   showPrivacyModal.value = false
 }
 
 function openAboutModal(): void {
+  saveFocus()
   showAboutModal.value = true
+  void focusModalContent(aboutModalRef.value)
 }
 
 function closeAboutModal(): void {
+  restoreFocus()
   showAboutModal.value = false
 }
 
@@ -288,7 +351,7 @@ function buildImportCandidates(url: string): string[] {
   return [
     url,
     `https://api.allorigins.win/raw?url=${encoded}`,
-    `https://cors.isomorphic-git.org/${url}`
+    `https://cors.isomorphic-git.org/${encoded}`,
   ]
 }
 
@@ -314,12 +377,17 @@ function normalizeImportUrl(input: string): string | null {
 }
 
 async function fetchWithTimeout(url: string): Promise<Response> {
+  importAbortController.value?.abort()
   const controller = new AbortController()
+  importAbortController.value = controller
   const timer = window.setTimeout(() => controller.abort(), IMPORT_TIMEOUT_MS)
   try {
     return await fetch(url, { signal: controller.signal })
   } finally {
     window.clearTimeout(timer)
+    if (importAbortController.value === controller) {
+      importAbortController.value = null
+    }
   }
 }
 
@@ -354,17 +422,26 @@ async function readResponseTextWithLimit(response: Response): Promise<string> {
 
 function stripJinaHeader(text: string): string {
   const normalized = text.replace(/\r\n/g, '\n')
+
+  // 仅在文件头部（前 600 字符）查找 jina 元信息标记，避免误删正文
+  const HEADER_WINDOW = 600
+  const header = normalized.slice(0, HEADER_WINDOW)
+  const rest = normalized.slice(HEADER_WINDOW)
+
   const marker = 'Markdown Content:\n'
-  const markerIndex = normalized.indexOf(marker)
+  const markerIndex = header.indexOf(marker)
   if (markerIndex >= 0) {
-    return normalized.slice(markerIndex + marker.length).trimStart()
+    const afterMarker = header.slice(markerIndex + marker.length).trimStart()
+    return afterMarker + rest
   }
 
-  const lines = normalized.split('\n')
+  const lines = header.split('\n')
   const urlSourceIndex = lines.findIndex((line) => line.startsWith('URL Source:'))
   if (urlSourceIndex >= 0) {
     const firstContent = lines.findIndex((line, idx) => idx > urlSourceIndex && line.trim() !== '')
-    if (firstContent > -1) return lines.slice(firstContent).join('\n')
+    if (firstContent > -1) {
+      return lines.slice(firstContent).join('\n') + '\n' + rest
+    }
   }
 
   return normalized
@@ -417,10 +494,15 @@ async function onUnifiedImport(): Promise<void> {
   importError.value = ''
   importLoading.value = false
   useJinaMode.value = false
+  saveFocus()
   showImportModal.value = true
+  void focusModalContent(importModalRef.value)
 }
 
 function closeImportModal(): void {
+  importAbortController.value?.abort()
+  importAbortController.value = null
+  restoreFocus()
   showImportModal.value = false
   importLoading.value = false
 }
@@ -471,6 +553,13 @@ async function onLocalFileChange(event: Event): Promise<void> {
     return
   }
 
+  // 拒绝明显的二进制文件类型
+  if (file.type && !file.type.startsWith('text/') && !isTextMime(file.type)) {
+    importError.value = t('importUnsupportedType')
+    target.value = ''
+    return
+  }
+
   importLoading.value = true
   importError.value = ''
   try {
@@ -478,11 +567,23 @@ async function onLocalFileChange(event: Event): Promise<void> {
     applyImportedContent(file.name, text)
     closeImportModal()
   } catch {
-    importError.value = t('importFailed')
+    importError.value = t('importLocalFailed')
   } finally {
     importLoading.value = false
     target.value = ''
   }
+}
+
+/** 已知文本类 MIME 白名单（type 属性可能为 application/* 但内容为文本） */
+function isTextMime(mime: string): boolean {
+  return (
+    mime.startsWith('application/json') ||
+    mime.startsWith('application/xml') ||
+    mime.startsWith('application/x-httpd-php') ||
+    mime.startsWith('application/javascript') ||
+    mime === 'application/x-sh' ||
+    mime === 'application/typescript'
+  )
 }
 </script>
 
@@ -607,28 +708,6 @@ async function onLocalFileChange(event: Event): Promise<void> {
             <span class="icon-state-badge">{{ privacyMode ? 'ON' : 'OFF' }}</span>
           </button>
 
-          <div class="font-size-control" :aria-label="t('fontSize')">
-            <button
-              type="button"
-              class="icon-btn"
-              :aria-label="t('fontSmaller')"
-              :title="t('fontSmaller')"
-              @click="decreaseFontSize"
-            >
-              <span class="font-symbol">A-</span>
-            </button>
-            <span class="font-size-value">{{ editorFontSize }}</span>
-            <button
-              type="button"
-              class="icon-btn"
-              :aria-label="t('fontLarger')"
-              :title="t('fontLarger')"
-              @click="increaseFontSize"
-            >
-              <span class="font-symbol">A+</span>
-            </button>
-          </div>
-
           <button
             type="button"
             class="icon-btn"
@@ -721,7 +800,7 @@ async function onLocalFileChange(event: Event): Promise<void> {
               :aria-expanded="showFileTypeMenu"
               @click="toggleFileTypeMenu"
             >
-              .{{ ext }} ({{ t(`fileTypes.${ext}`) }})
+              .{{ ext }} ({{ fileTypeLabel(ext) }})
             </button>
 
             <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
@@ -732,7 +811,7 @@ async function onLocalFileChange(event: Event): Promise<void> {
                   :class="{ active: ext === item.ext }"
                   @click="selectFileType(item.ext)"
                 >
-                  .{{ item.ext }} ({{ t(`fileTypes.${item.ext}`) }})
+                  .{{ item.ext }} ({{ fileTypeLabel(item.ext) }})
                 </button>
               </li>
             </ul>
@@ -800,8 +879,36 @@ async function onLocalFileChange(event: Event): Promise<void> {
 
       <section class="editor-wrap">
         <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
+
+        <div class="font-size-slider" :aria-label="t('fontSize')">
+          <svg
+            class="font-slider-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path d="M3 7V5H15V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M9 5V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M4 19H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M17 19V13L20 10L23 13V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M19 17H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input
+            type="range"
+            class="font-slider-input"
+            :min="MIN_FONT_SIZE"
+            :max="MAX_FONT_SIZE"
+            :value="editorFontSize"
+            :aria-label="t('fontSize')"
+            @input="editorFontSize = Number(($event.target as HTMLInputElement).value)"
+          />
+          <span class="font-slider-value">{{ editorFontSize }}</span>
+        </div>
       </section>
     </main>
+
+    <VisitStats />
 
     <div
       v-if="showImportModal"
@@ -809,7 +916,14 @@ async function onLocalFileChange(event: Event): Promise<void> {
       role="presentation"
       @click.self="closeImportModal"
     >
-      <div class="import-modal" role="dialog" aria-modal="true" :aria-label="t('importDialogTitle')">
+      <div
+        ref="importModalRef"
+        class="import-modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('importDialogTitle')"
+        @keydown="importModalRef && trapFocus($event, importModalRef)"
+      >
         <h3 class="import-title">{{ t('importDialogTitle') }}</h3>
         <p class="import-desc">{{ t('importDialogDesc') }}</p>
 
@@ -855,10 +969,19 @@ async function onLocalFileChange(event: Event): Promise<void> {
       role="presentation"
       @click.self="closeAboutModal"
     >
-      <div class="import-modal" role="dialog" aria-modal="true" :aria-label="t('aboutTitle')">
+      <div
+        ref="aboutModalRef"
+        class="import-modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('aboutTitle')"
+        @keydown="aboutModalRef && trapFocus($event, aboutModalRef)"
+      >
         <h3 class="import-title">{{ t('aboutTitle') }}</h3>
         <p class="import-desc">{{ t('aboutDesc') }}</p>
         <div class="about-content">
+          <p>{{ t('version') }}</p>
+          <p>{{ t('lastUpdated') }}</p>
           <p>{{ t('footerCredit') }}</p>
           <p>
             {{ t('licenseNotice') }}
@@ -886,7 +1009,14 @@ async function onLocalFileChange(event: Event): Promise<void> {
       role="presentation"
       @click.self="closePrivacyModal"
     >
-      <div class="import-modal" role="dialog" aria-modal="true" :aria-label="t('privacyDialogTitle')">
+      <div
+        ref="privacyModalRef"
+        class="import-modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('privacyDialogTitle')"
+        @keydown="privacyModalRef && trapFocus($event, privacyModalRef)"
+      >
         <h3 class="import-title">{{ t('privacyDialogTitle') }}</h3>
         <p class="import-desc">{{ t('privacyDialogDesc') }}</p>
 

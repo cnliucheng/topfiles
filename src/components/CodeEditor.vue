@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Extension } from '@codemirror/state'
-import type { FileExtension } from '../constants/fileTypes'
+import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
 
 const props = defineProps<{
   modelValue: string
@@ -21,39 +21,25 @@ let editorView: EditorView | null = null
 const languageCompartment = new Compartment()
 let languageRequestId = 0
 
+/* ---- 语言加载器查表 ---- */
+const LANGUAGE_LOADERS: Record<string, () => Promise<Extension>> = {
+  json:       () => import('@codemirror/lang-json').then((m) => m.json()),
+  html:       () => import('@codemirror/lang-html').then((m) => m.html()),
+  css:        () => import('@codemirror/lang-css').then((m) => m.css()),
+  php:        () => import('@codemirror/lang-php').then((m) => m.php()),
+  python:     () => import('@codemirror/lang-python').then((m) => m.python()),
+  javascript: () => import('@codemirror/lang-javascript').then((m) => m.javascript({ typescript: false })),
+  typescript: () => import('@codemirror/lang-javascript').then((m) => m.javascript({ typescript: true })),
+  shell:      () => import('@codemirror/legacy-modes/mode/shell').then(({ shell }) =>
+    import('@codemirror/language').then(({ StreamLanguage }) => StreamLanguage.define(shell))
+  ),
+}
+
 async function loadLanguageExtension(ext: FileExtension): Promise<Extension> {
-  switch (ext) {
-    case 'json': {
-      const mod = await import('@codemirror/lang-json')
-      return mod.json()
-    }
-    case 'html': {
-      const mod = await import('@codemirror/lang-html')
-      return mod.html()
-    }
-    case 'css': {
-      const mod = await import('@codemirror/lang-css')
-      return mod.css()
-    }
-    case 'php': {
-      const mod = await import('@codemirror/lang-php')
-      return mod.php()
-    }
-    case 'py': {
-      const mod = await import('@codemirror/lang-python')
-      return mod.python()
-    }
-    case 'js': {
-      const mod = await import('@codemirror/lang-javascript')
-      return mod.javascript({ typescript: false })
-    }
-    case 'ts': {
-      const mod = await import('@codemirror/lang-javascript')
-      return mod.javascript({ typescript: true })
-    }
-    default:
-      return []
-  }
+  const option = FILE_TYPES.find((f) => f.ext === ext)
+  const lang = option?.language
+  if (!lang || !LANGUAGE_LOADERS[lang]) return []
+  return LANGUAGE_LOADERS[lang]()
 }
 
 async function applyLanguage(ext: FileExtension): Promise<void> {

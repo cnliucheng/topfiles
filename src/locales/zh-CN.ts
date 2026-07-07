@@ -7,6 +7,8 @@ export default {
   about: '关于',
   aboutTitle: '关于本项目',
   aboutDesc: '这里包含开发者信息与授权说明。',
+  version: '版本 1.5',
+  lastUpdated: '最后更新：2026-07-07',
   theme: '主题',
   light: '明亮',
   dark: '暗黑',
@@ -27,6 +29,8 @@ export default {
   confirm: '确定',
   importFailed:
     '导入失败。可能是跨域限制（CORS）或链接不可访问。可尝试可公开直链的文本地址。',
+  importLocalFailed: '读取本地文件失败，文件可能被占用或无法访问。',
+  importUnsupportedType: '不支持的文件类型，仅允许导入文本类文件。',
   download: '下载文件',
   clearDraft: '清空草稿',
   privacyModeOn: '隐私模式：开',
@@ -57,6 +61,7 @@ export default {
     m3u8: 'M3U8 播放列表',
     yaml: 'YAML',
     yml: 'YML',
-    conf: '配置文件'
+    conf: '配置文件',
+    sh: 'Shell 脚本'
   }
 }

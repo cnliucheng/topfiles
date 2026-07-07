@@ -7,6 +7,8 @@ export default {
   about: 'About',
   aboutTitle: 'About This Project',
   aboutDesc: 'Developer and license information is shown here.',
+  version: 'Version 1.5',
+  lastUpdated: 'Last updated: 2026-07-07',
   theme: 'Theme',
   light: 'Light',
   dark: 'Dark',
@@ -27,6 +29,8 @@ export default {
   confirm: 'OK',
   importFailed:
     'Import failed. This may be caused by CORS restrictions or an inaccessible URL. Try a public direct text link.',
+  importLocalFailed: 'Failed to read local file. It may be locked or inaccessible.',
+  importUnsupportedType: 'Unsupported file type. Only text-based files are allowed.',
   download: 'Download File',
   clearDraft: 'Clear Draft',
   privacyModeOn: 'Privacy: On',
