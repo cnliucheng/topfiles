@@ -1,0 +1,17 @@
+[Unit]
+Description=TopFiles - online file editor with share
+After=network.target
+
+[Service]
+Type=simple
+User=topfiles
+WorkingDirectory=/opt/topfiles/server
+EnvironmentFile=/opt/topfiles/server/.env
+ExecStart=/usr/bin/node /opt/topfiles/server/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
