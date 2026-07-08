@@ -1,4 +1,4 @@
-# TopFiles 分享功能 — 设计文档
+# TopFiles 分享功能 — 极简版设计
 
 **日期**：2026-07-08
 **状态**：设计稿（待实施）
@@ -12,53 +12,53 @@
 
 `TopFiles` 是一个基于 Vue 3 + Vite + TypeScript + CodeMirror 6 的纯前端在线文件编辑工具。用户输入文件名、编辑内容、点击下载到本地。
 
-**当前限制**：
-- 无后端，所有内容只在浏览器里
-- 无账号、无云存储
-- "分享"只能下载到本地后再用其他工具发出去
+**当前限制**：无后端、无账号、无云存储、无分享链接。
 
 ### 1.2 目标
 
-为 TopFiles 增加"在线分享"能力，让用户能够：
+为 TopFiles 增加"在线分享"能力：
 
-- 用 GitHub 账号登录
-- 把编辑的文件保存到云端
-- 生成一个**可读的公开直链**（类似 GitHub 文件 URL 风格：`/u/<username>/<filename>`）
-- 通过直链把文件分享给任何人
-- 在个人 Dashboard 管理自己所有文件
+- 首次访问引导注册一个账号（**全站只允许一个账号**）
+- 登录后左侧显示文件列表，右侧显示现有编辑器
+- 编辑完点"保存" → 入库
+- 点"分享" → 生成可读直链 `https://app/u/<username>/<filename>`
+- 直链任何人可访问，纯文本内容直接展示
+- 未登录访问首页 → 显示"创建账号"或"登录"页面
 
 ### 1.3 范围
 
 **MVP 范围（in）**：
-- GitHub OAuth 登录
-- 文本与二进制文件上传/编辑/删除
-- 可读直链（默认只读）
-- 个人 Dashboard
-- Docker Compose 一键部署
+- 首次访问引导注册（单账号）
+- 用户名 + 密码登录
+- 登录后单页布局：左侧文件列表 + 右侧编辑器
+- 创建/编辑/删除/分享文件
+- 可读直链 `/u/:username/:filename`
+- Docker 单进程部署
 
 **MVP 不做（out）**：
-- 实时协作编辑
+- 多用户注册
+- GitHub OAuth / 第三方登录
+- 二进制文件（图片/pdf/zip 等）
 - 文件夹/层级目录
-- 评论、点赞
-- 付费/会员
-- 自定义域名
-- 移动 App
+- 文件搜索/分页/筛选（简单列表即可）
+- 实时协作、评论
+- 大文件上传（> 1MB 不支持）
 
 ---
 
-## 2. 关键决策摘要
+## 2. 关键决策
 
 | 维度 | 决策 | 理由 |
 |---|---|---|
-| 权限模型 | 完整用户系统 | 便于管理自己的文件、撤销分享、统计 |
-| 直链权限 | 默认只读（公开桶模式） | 实现简单、无需并发控制 |
-| 直链格式 | `https://app/u/<username>/<filename>` | 可读、SEO 友好、品牌感强 |
-| 技术栈 | Node.js + Fastify + TypeScript | 复用现有 TS 技术栈 |
-| ORM | Drizzle | TypeScript 优先、类型安全、迁移生成器好 |
-| 数据库 | SQLite（生产用 WAL 模式） | 零运维、单文件易备份、对小项目足够 |
-| 对象存储 | S3 兼容（本地 MinIO，生产可换 R2/OSS） | 协议统一、切换无感、扩展灵活 |
-| 认证方式 | GitHub OAuth | 免邮件问题、目标用户都是开发者 |
-| Token 机制 | JWT (access) + DB 存 refresh | access 无状态、refresh 可吊销 |
+| 账号模式 | 单账号（首次访问引导注册） | 个人项目，无需多用户管理 |
+| 认证 | 用户名 + 密码（bcrypt） | 经典方案，无第三方依赖 |
+| 文件范围 | 只支持文本，限 1MB | 覆盖笔记/代码/配置 95% 场景 |
+| 存储 | 全部 SQLite，**不引入 S3** | 内容直接存 TEXT 字段，部署极简 |
+| ORM | Drizzle | TS 优先、类型安全、迁移简单 |
+| 后端 | Fastify + TypeScript | 复用现有 TS 技术栈 |
+| Token | JWT + httpOnly cookie | 标准方案 |
+| 直链格式 | `/u/:username/:filename` | 可读、品牌感、SEO 友好 |
+| 部署 | Docker 单进程 | 一个 Node + 一个 .db 文件 |
 
 ---
 
@@ -66,606 +66,483 @@
 
 ```
 ┌──────────────────────────────────────────────┐
-│            浏览器 (Vue 3 前端)               │
-│  - 现有 TopFiles 编辑器                       │
-│  - 新增：登录、文件列表、分享管理            │
+│         浏览器 (Vue 3 单页应用)              │
+│  ┌──────────────────────────────────────┐   │
+│  │ 未登录：注册 / 登录页                │   │
+│  │ 登录后：侧边栏 + 编辑器              │   │
+│  └──────────────────────────────────────┘   │
 └────────────────┬─────────────────────────────┘
-                 │ HTTPS
+                 │ HTTPS (httpOnly cookie)
                  ▼
 ┌──────────────────────────────────────────────┐
-│         Fastify API (Node.js)                │
+│         Fastify API (单进程)                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
 │  │  Auth    │  │  Files   │  │  Share   │   │
-│  │  (OAuth) │  │  (CRUD)  │  │  (直链)  │   │
+│  │ 注册/登录 │  │  CRUD    │  │  公开直链│   │
 │  └──────────┘  └──────────┘  └──────────┘   │
-└──────┬───────────────────────┬──────────────┘
-       │                       │
-       ▼                       ▼
-┌──────────────┐        ┌─────────────────┐
-│  SQLite      │        │  S3 兼容存储    │
-│  (元数据)    │        │  本地: MinIO    │
-│              │        │  生产: R2/OSS   │
-└──────────────┘        └─────────────────┘
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │  SQLite         │
+              │  (全部数据)     │
+              └─────────────────┘
 ```
 
-### 3.1 核心流程
-
-1. **登录**：用户点"用 GitHub 登录" → 跳转 GitHub → 回调后服务端发 JWT → 写入 httpOnly cookie
-2. **保存**：已登录用户编辑文件 → `PUT /api/files/:id` → 内容走 S3，元数据走 SQLite
-3. **分享**：用户在文件列表点"分享" → `PATCH /api/files/:id/visibility` 改为 `public` → 返回直链 URL
-4. **直链访问**：任何人访问 `/u/<username>/<filename>` → 服务端校验 visibility → 返回 S3 流或 302 签名 URL
-
-### 3.2 S3 适配层
-
-封装 `StorageAdapter` 接口（`put / get / getMetadata / delete / getSignedUrl`），提供两个实现：
-
-- `MinioAdapter`：本地开发
-- `R2Adapter` / `OssAdapter`：生产
-
-业务代码通过工厂注入 `createStorage(env)`，对调用方透明。
+**没有对象存储，没有 Redis，没有队列。** 一个 Node 进程 + 一个 .db 文件搞定一切。
 
 ---
 
-## 4. 数据模型（SQLite）
+## 4. 数据模型
 
 ### 4.1 表结构
 
 ```sql
--- 1. 用户表
+-- 1. 账号表（永远只有 1 行）
 CREATE TABLE users (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  github_id     INTEGER UNIQUE NOT NULL,
-  username      TEXT UNIQUE NOT NULL COLLATE NOCASE,
-  display_name  TEXT,
-  avatar_url    TEXT,
-  email         TEXT,
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  id             INTEGER PRIMARY KEY CHECK (id = 1),  -- 强制单账号
+  username       TEXT UNIQUE NOT NULL COLLATE NOCASE,
+  password_hash  TEXT NOT NULL,                       -- bcrypt
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_users_username ON users(username COLLATE NOCASE);
 
 -- 2. 文件表
 CREATE TABLE files (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  filename     TEXT NOT NULL COLLATE NOCASE,
+  filename     TEXT NOT NULL COLLATE NOCASE,           -- 唯一
   mime_type    TEXT NOT NULL,
+  content      TEXT NOT NULL,                          -- 文本内容直接存
   size_bytes   INTEGER NOT NULL,
-  storage_key  TEXT NOT NULL,
   visibility   TEXT NOT NULL DEFAULT 'private'
                  CHECK (visibility IN ('public', 'private')),
-  etag         TEXT NOT NULL,
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (user_id, filename COLLATE NOCASE)
+  UNIQUE (filename COLLATE NOCASE)
 );
-CREATE INDEX idx_files_user_visibility ON files(user_id, visibility);
+CREATE INDEX idx_files_visibility ON files(visibility);
 
--- 3. 会话表（refresh token）
+-- 3. 会话表（refresh token，注销时删）
 CREATE TABLE sessions (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   refresh_token TEXT UNIQUE NOT NULL,
   user_agent    TEXT,
   ip            TEXT,
   expires_at    TEXT NOT NULL,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_sessions_user ON sessions(user_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
-
--- 4. 访问日志（可选，默认不写）
-CREATE TABLE share_access_logs (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  file_id     INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
-  ip          TEXT,
-  user_agent  TEXT,
-  accessed_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX idx_access_logs_file ON share_access_logs(file_id, accessed_at DESC);
 ```
 
-### 4.2 关键设计点
+### 4.2 单账号强制
+
+- `users.id` 上加 `CHECK (id = 1)` — 数据库层面阻止插入第二行
+- 注册 API 检测 `COUNT(*) > 0` → 返回 409 "已存在账号，请登录"
+- 无需复杂的 admin/role 概念
+
+### 4.3 关键设计点
 
 | 点 | 理由 |
 |---|---|
-| `users.github_id` 用 `INTEGER UNIQUE` | GitHub 用户 ID 是数字，比 username 稳定（用户名可改） |
-| `users.username` 用 `COLLATE NOCASE` | URL 路径统一小写；查询时大小写不敏感 |
-| `files.filename` 用 `COLLATE NOCASE` 唯一约束 | `Notes.md` 和 `notes.md` 视为同一文件 |
-| `files.storage_key` 与 `filename` 解耦 | 重命名只改 metadata，S3 物理对象可加 user_id 前缀保留 |
-| `files.etag` 存内容 SHA-256 | 304 缓存、S3 上传校验、并发控制都用得上 |
-| `share_access_logs` 默认不写 | MVP 不开，按需启用，避免数据爆炸 |
-| `ON DELETE CASCADE` | 用户注销时自动清理（实际删除前需再确认） |
-| `WAL 模式` | 读写并发性能更好（`PRAGMA journal_mode=WAL;`） |
-
-### 4.3 Drizzle schema 示意
-
-```typescript
-// server/src/db/schema.ts
-import { sqliteTable, integer, text, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
-
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  githubId: integer('github_id').notNull().unique(),
-  username: text('username').notNull().unique().collate('nocase'),
-  displayName: text('display_name'),
-  avatarUrl: text('avatar_url'),
-  email: text('email'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
-}, (t) => ({
-  usernameIdx: index('idx_users_username').on(t.username),
-}))
-
-export const files = sqliteTable('files', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  filename: text('filename').notNull().collate('nocase'),
-  mimeType: text('mime_type').notNull(),
-  sizeBytes: integer('size_bytes').notNull(),
-  storageKey: text('storage_key').notNull(),
-  visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('private'),
-  etag: text('etag').notNull(),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
-}, (t) => ({
-  userFilenameUnique: uniqueIndex('uniq_user_filename').on(t.userId, t.filename),
-  userVisibilityIdx: index('idx_files_user_visibility').on(t.userId, t.visibility),
-}))
-
-export const sessions = sqliteTable('sessions', { /* ... */ })
-export const shareAccessLogs = sqliteTable('share_access_logs', { /* ... */ })
-```
+| `users.username` COLLATE NOCASE | URL 路径统一小写 |
+| `files.filename` COLLATE NOCASE 唯一 | `Notes.md` 和 `notes.md` 视为同一文件 |
+| `content` 直接存 TEXT | 文本小，无需对象存储 |
+| `size_bytes` 冗余存储 | 列表展示用，省一次 LENGTH() |
+| `visibility` 默认 private | 注册后默认全私密，避免误分享 |
+| `WAL 模式` | 读写并发（`PRAGMA journal_mode=WAL;`） |
 
 ---
 
 ## 5. API 设计
 
-RESTful 风格，统一返回 JSON。鉴权用 httpOnly cookie。
-
-### 5.1 鉴权
+### 5.1 系统元信息
 
 ```
-GET   /api/auth/github           跳转到 GitHub OAuth 授权页
-GET   /api/auth/github/callback  GitHub 回调：换 token、建用户、种 cookie
-POST  /api/auth/refresh          用 refresh token 换新的 access token
-POST  /api/auth/logout           注销（清 cookie + 删 session）
-GET   /api/auth/me               获取当前登录用户信息
+GET /api/setup/status
+  → { hasAccount: boolean }
+  未注册过 → 返回 false，前端跳"创建账号"
+  已注册 → 返回 true，前端跳"登录"
 ```
 
-### 5.2 文件 CRUD（全部需登录）
+### 5.2 认证（单账号）
 
 ```
-GET    /api/files                       列出我的所有文件
-                                        ?visibility=public&search=foo&page=1&limit=50
+POST /api/auth/setup
+  body: { username, password }
+  → 创建账号（仅在 hasAccount=false 时成功，否则 409）
+  → 自动登录（种 cookie）
+  → 201 { username }
 
-POST   /api/files                       创建文件
-        body: { filename, content|binary, mimeType? }
-        ≤ 1MB 走 JSON；> 1MB 走 multipart
+POST /api/auth/login
+  body: { username, password }
+  → 校验密码
+  → 种 cookie
+  → 200 { username }
 
-GET    /api/files/:id                   获取文件详情 + 内容（小文件直接返）
-                                        响应头 ETag 用于客户端缓存
+POST /api/auth/logout
+  → 清 cookie + 删 sessions
+  → 204
 
-PUT    /api/files/:id                   更新文件
+POST /api/auth/refresh
+  → 用 refresh token 换新 access token
+  → 200
+
+GET /api/auth/me
+  → 200 { username } or 401
+```
+
+### 5.3 文件 CRUD
+
+```
+GET    /api/files                 列出所有文件
+                                  返回：[{ id, filename, mimeType, sizeBytes, 
+                                           visibility, updatedAt }, ...]
+                                  按 updated_at DESC 排序
+
+POST   /api/files                 创建
+        body: { filename, content, mimeType? }
+        → 201 { id, filename, ... }
+
+GET    /api/files/:id             获取详情 + content
+        → 200 { id, filename, content, ... }
+
+PUT    /api/files/:id             更新内容
         body: { content, mimeType? }
-        校验 If-Match ETag（乐观锁）
+        → 200 { id, filename, ... }
 
-DELETE /api/files/:id                   删除文件（同时删 S3 对象）
+DELETE /api/files/:id
+        → 204
 
-PATCH  /api/files/:id                   修改元数据
-        body: { filename?, visibility? }
-        filename 改了要处理 301 重定向
+PATCH  /api/files/:id             改 visibility 或 改名
+        body: { visibility? , filename? }
+        → 200 { id, filename, ... }
 ```
 
-### 5.3 分享
+### 5.4 公开直链
 
 ```
-PATCH  /api/files/:id/visibility         切换 public/private
-GET    /api/files/:id/share-info         获取分享元信息（直链、创建时间、访问次数）
-```
-
-### 5.4 公开访问（无需登录）
-
-```
-GET    /u/:username/:filename            直链入口
-                                        ├─ 304 if-none-match
-                                        ├─ 私密文件 → 404（不暴露存在性）
-                                        ├─ 小文件（< 5MB）→ 直接 stream
-                                        └─ 大文件 → 302 到 S3 签名 URL（10 分钟有效）
-
-GET    /u/:username                      个人主页（列出所有 public 文件）
+GET /u/:username/:filename
+  → 查 user → 查 file
+  → 私密 → 404（不暴露存在性）
+  → 公开 → 200
+       header Content-Type: <mime>
+       header Content-Disposition: inline; filename="<encoded>"
+       body: 文件内容
 ```
 
 ### 5.5 通用约定
 
 | 项 | 规则 |
 |---|---|
-| 请求体 | JSON（除 multipart 外） |
 | 鉴权 | httpOnly cookie `tf_access`（JWT 15min）+ `tf_refresh`（30 天） |
-| 错误格式 | `{ error: { code, message, details? } }` |
-| 状态码 | 200/201/204 成功；400 参数；401 未登录；403 权限；404 不存在；409 冲突；413 超大；429 限流；5xx 服务端 |
-| 限流 | 每用户每分钟 60 写/600 读；直链每 IP 每分钟 300 |
-| 分页 | `?page=1&limit=50`，响应带 `total`、`hasMore` |
-| 字符集 | UTF-8，路径段先 `encodeURIComponent` |
+| 错误格式 | `{ error: { code, message } }` |
+| 状态码 | 200/201/204 成功；400 参数；401 未登录；404 不存在；409 冲突；5xx 服务端 |
+| 字符集 | UTF-8，URL 路径 `encodeURIComponent` |
+| 限流 | 登录/setup 每 IP 每分钟 5 次；其他每用户每分钟 60 次 |
 
 ---
 
-## 6. 鉴权流程（GitHub OAuth）
+## 6. 鉴权流程
 
-### 6.1 完整流程
+### 6.1 注册（仅一次）
 
 ```
-浏览器                我们的 API              GitHub
-  │                    │                      │
-  │ 1. 点"用 GitHub 登录"                      │
-  ├───────────────────>│                      │
-  │ 2. 302 → /api/auth/github                  │
-  │<───────────────────┤                      │
-  │ 3. 302 → GitHub 授权页                     │
-  │<──────────────────────────────────────────>│
-  │ 4. 用户点"Authorize"                        │
-  │<──────────────────────────────────────────>│
-  │ 5. 回调：GET /api/auth/github/callback?code=xxx
-  ├───────────────────>│                      │
-  │                    │ 6. 用 code 换 token   │
-  │                    ├─────────────────────>│
-  │                    │ 7. 拉用户信息         │
-  │                    ├─────────────────────>│
-  │                    │ 8. upsert 用户        │
-  │                    │ 9. 签 JWT + 种 cookie │
-  │ 10. 302 → 前端首页                          │
-  │<───────────────────┤                      │
+┌────────────────────────────────────────────────┐
+│  首次访问：GET /api/setup/status               │
+│  返回 { hasAccount: false }                     │
+└────────────────────┬───────────────────────────┘
+                     ▼
+┌────────────────────────────────────────────────┐
+│  前端展示"创建账号"表单                          │
+│  用户填写：用户名 + 密码 + 确认密码             │
+│  提交：POST /api/auth/setup                    │
+│    body: { username, password }                 │
+└────────────────────┬───────────────────────────┘
+                     ▼
+┌────────────────────────────────────────────────┐
+│  服务端：                                       │
+│    1. 查 users 表，COUNT(*) == 0？             │
+│       否 → 409 ALREADY_INITIALIZED             │
+│    2. bcrypt.hash(password) → 存 users         │
+│    3. 签 JWT，种 cookie                         │
+│    4. 201 { username }                          │
+└────────────────────┬───────────────────────────┘
+                     ▼
+              进入主界面
 ```
 
-### 6.2 Cookie 设计
+### 6.2 登录
+
+```
+┌────────────────────────────────────────────────┐
+│  POST /api/auth/login                          │
+│    body: { username, password }                 │
+│  服务端：                                       │
+│    1. 查 users（按 username）                  │
+│    2. bcrypt.compare(password, password_hash)   │
+│    3. 失败 → 401 INVALID_CREDENTIALS           │
+│    4. 成功 → 签 JWT，种 cookie                  │
+│    5. 200 { username }                          │
+└────────────────────────────────────────────────┘
+```
+
+### 6.3 Cookie 与 JWT
 
 ```
 tf_access   JWT access token，15 分钟
             httpOnly, secure, sameSite=Lax, path=/
 
-tf_refresh  随机 32 字节 base64
+tf_refresh  32 字节随机 base64
             httpOnly, secure, sameSite=Lax, path=/api/auth
             30 天有效，存 sessions 表
 ```
 
-- access token 用 JWT（HS256 + 强密钥）— 自验证，无需查 DB
-- refresh token 存 DB — 可主动吊销
-
-### 6.3 JWT payload
-
+JWT payload：
 ```json
-{
-  "sub": "user:42",
-  "gh_id": 12345678,
-  "username": "liubleed",
-  "iat": 1717800000,
-  "exp": 1717800900
-}
+{ "sub": "user:1", "username": "liubleed", "iat": ..., "exp": ... }
 ```
 
-### 6.4 关键路由伪代码
+签名：HS256，密钥 32 字节随机，存 `.env` 的 `JWT_SECRET`。
 
-```typescript
-// GET /api/auth/github
-fastify.get('/api/auth/github', async (req, reply) => {
-  const state = nanoid()
-  reply.setCookie('tf_oauth_state', state, { httpOnly: true, sameSite: 'Lax' })
-  const url = new URL('https://github.com/login/oauth/authorize')
-  url.searchParams.set('client_id', env.GITHUB_CLIENT_ID)
-  url.searchParams.set('redirect_uri', env.GITHUB_CALLBACK_URL)
-  url.searchParams.set('scope', 'read:user user:email')
-  url.searchParams.set('state', state)
-  return reply.redirect(url.toString())
-})
+### 6.4 路由守卫
 
-// GET /api/auth/github/callback
-fastify.get('/api/auth/github/callback', async (req, reply) => {
-  const { code, state } = req.query
-  if (state !== req.cookies.tf_oauth_state) throw new AppError(400, 'STATE_MISMATCH', 'OAuth state 校验失败')
-  
-  const { access_token } = await exchangeCodeForToken(code)
-  const ghUser = await fetchGitHubUser(access_token)
-  const user = await upsertUser(ghUser)
-  
-  const accessToken = await reply.jwtSign({ sub: `user:${user.id}`, gh_id: user.githubId, username: user.username })
-  const refreshToken = nanoid(32)
-  await db.insert(sessions).values({ userId: user.id, refreshToken, expiresAt: addDays(30) })
-  
-  reply.setCookie('tf_access', accessToken, { maxAge: 900, httpOnly: true, secure: true, sameSite: 'Lax' })
-  reply.setCookie('tf_refresh', refreshToken, { maxAge: 30*24*3600, httpOnly: true, secure: true, sameSite: 'Lax', path: '/api/auth' })
-  reply.clearCookie('tf_oauth_state')
-  return reply.redirect(env.FRONTEND_URL)
-})
-
-// POST /api/auth/refresh
-fastify.post('/api/auth/refresh', async (req, reply) => {
-  const refreshToken = req.cookies.tf_refresh
-  if (!refreshToken) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
-  
-  const session = await db.query.sessions.findFirst({ where: eq(sessions.refreshToken, refreshToken) })
-  if (!session || new Date(session.expiresAt) < new Date()) {
-    throw new AppError(401, 'TOKEN_EXPIRED', '登录已过期')
-  }
-  
-  const user = await db.query.users.findFirst({ where: eq(users.id, session.userId) })
-  const newAccessToken = await reply.jwtSign({ sub: `user:${user.id}`, gh_id: user.githubId, username: user.username })
-  reply.setCookie('tf_access', newAccessToken, { maxAge: 900, httpOnly: true, secure: true, sameSite: 'Lax' })
-  return { ok: true }
-})
-```
+前端无需 vue-router 复杂守卫：
+- 启动时调 `GET /api/setup/status`
+  - `false` → 显示"创建账号"
+  - `true` → 调 `GET /api/auth/me`
+    - 200 → 显示主界面
+    - 401 → 显示"登录"
 
 ### 6.5 安全清单
 
-- [x] state 参数防 CSRF
-- [x] JWT HS256 + 强密钥（32 字节随机）
+- [x] 密码 bcrypt 哈希（cost = 12）
+- [x] 密码最少 8 位
+- [x] 用户名 3-32 位，仅 `[a-z0-9_-]`
+- [x] JWT HS256 + 强密钥
 - [x] cookie 全 `httpOnly + secure + sameSite=Lax`
 - [x] refresh token 存 DB 可吊销
-- [x] GitHub access_token 不存（用完即丢）
-- [x] 错误不泄露内部细节
-- [x] 限流：登录/刷新每 IP 每分钟 10 次
+- [x] 单账号 CHECK 约束
+- [x] 限流：登录/setup 每 IP 每分钟 5 次
 
-### 6.6 必需环境变量
+### 6.6 环境变量
 
 ```bash
-GITHUB_CLIENT_ID=xxx
-GITHUB_CLIENT_SECRET=xxx
-GITHUB_CALLBACK_URL=https://app.example.com/api/auth/github/callback
 JWT_SECRET=<32 字节随机>
+COOKIE_DOMAIN=app.example.com  # 可选
+COOKIE_SECURE=true              # 生产必须 true
+PORT=3000
+DATABASE_URL=file:/data/topfiles.db
 FRONTEND_URL=https://app.example.com
 ```
 
 ---
 
-## 7. 文件存储层
+## 7. 前端改造
 
-### 7.1 抽象接口
+### 7.1 单页布局（最简版）
 
-```typescript
-// server/src/storage/adapter.ts
-export interface StorageAdapter {
-  put(key: string, body: Buffer | NodeJS.ReadableStream, contentType: string)
-    : Promise<{ etag: string; size: number }>
-  get(key: string): Promise<NodeJS.ReadableStream>
-  getMetadata(key: string): Promise<{ etag: string; size: number; contentType: string }>
-  delete(key: string): Promise<void>
-  getSignedUrl(key: string, expiresInSec: number): Promise<string>
-}
-```
-
-### 7.2 实现
-
-```typescript
-// server/src/storage/minio.ts
-// server/src/storage/r2.ts
-// server/src/storage/oss.ts
-// 工厂：createStorage(env) 根据 STORAGE_BACKEND 选择
-```
-
-### 7.3 S3 Key 设计
+**砍掉路由**：整个应用就一个页面（`App.vue`），根据登录态显示不同 UI。
 
 ```
-users/{user_id}/{yyyy}/{mm}/{file_id}-{filename}
+未登录态：
+┌──────────────────────────────────────┐
+│       TopFiles                       │
+│  ┌────────────────────────────────┐  │
+│  │  创建账号 / 登录                │  │
+│  │  [用户名______]                 │  │
+│  │  [密码________]                 │  │
+│  │  [ 登录 / 创建 ]                │  │
+│  └────────────────────────────────┘  │
+└──────────────────────────────────────┘
+
+登录态：
+┌─────────────────────────────────────────────────┐
+│  TopFiles                          [分享] [保存] │
+├─────────────┬───────────────────────────────────┤
+│  📄 a.md    │  文件名：[a.md            ]       │
+│  📄 b.yml   │  ─────────────────────────────────  │
+│  📄 c.json  │                                   │
+│             │  [CodeMirror 编辑区]              │
+│  [+ 新建]   │                                   │
+│             │                                   │
+│  ⚙️ 设置    │                                   │
+└─────────────┴───────────────────────────────────┘
 ```
 
-例：`users/42/2026/07/1234-notes.md`
-
-| 好处 | 体现 |
-|---|---|
-| 用户隔离 | 物理分目录，将来加配额只需统计 `users/{id}/` 下对象 |
-| 时间分片 | 同一用户文件多了不卡单目录 |
-| file_id 前缀 | 物理文件名永不冲突，DB 改名/删旧版本不影响 S3 |
-
-### 7.4 上传路径
-
-**小文件（≤ 1MB）**：
-```
-PUT /api/files
-Content-Type: application/json
-{filename, content, mimeType?}
-  └─ 转 Buffer → storage.put() → 写 DB → 201 + 返回文件详情
-```
-
-**大文件（> 1MB，前端直传 S3）**：
-```
-1. POST /api/files (声明要创建的文件)
-   服务端：预签 S3 multipart URLs → 返回 { uploadId, partUrls[] }
-2. 客户端：直接 PUT 到 S3（每个 part 一个 URL）
-3. 客户端：POST /api/files/:id/complete { parts: [...] }
-   服务端：S3.CompleteMultipartUpload → 写 DB
-```
-
-**孤儿清理**：客户端 5 分钟不上传 complete，服务端定时 job 调 `AbortMultipartUpload`。
-
-### 7.5 下载路径
-
-```
-GET /u/:username/:filename
-  ├─ 查 DB 拿 storage_key + size
-  ├─ size < 5MB：storage.get() → stream 给客户端（可 304 缓存、统计、鉴权）
-  ├─ size ≥ 5MB：reply.redirect(302, storage.getSignedUrl(key, 600))
-  └─ 任何错误 → 404
-```
-
-### 7.6 限制
-
-```bash
-MAX_FILE_SIZE_MB=100       # 默认
-MAX_TEXT_INLINE_MB=1       # 走 JSON body 上限
-```
-
-### 7.7 Mime 推断
-
-不信任前端 mime，服务端嗅探：
-
-```typescript
-import { fileTypeFromBuffer } from 'file-type'
-
-// 1. 文本扩展名 → text/* | application/json
-// 2. magic bytes 嗅探 → 图片/pdf/zip
-// 3. fallback → application/octet-stream
-```
-
-下载时 `Content-Disposition: inline; filename="<encoded>"` 决定预览或下载。
-
-### 7.8 配额（可选，MVP 不强制）
-
-```typescript
-// 每用户限额（环境变量）
-USER_MAX_TOTAL_BYTES=1073741824   // 1 GB
-USER_MAX_FILE_COUNT=1000
-```
-
-创建/上传前检查，超额 → 413 + 友好提示。
-
----
-
-## 8. 前端改造
-
-### 8.1 路由
-
-```typescript
-// src/router/index.ts
-const routes = [
-  { path: '/', component: HomeView },                    // 匿名：编辑器 + 草稿
-  { path: '/login', component: LoginView },
-  { path: '/u/:username', component: UserProfileView },
-  { path: '/u/:username/:filename', component: PublicFileView },
-  { path: '/dashboard', component: DashboardView, meta: { requiresAuth: true } },
-  { path: '/dashboard/files/:id', component: EditView, meta: { requiresAuth: true } },
-]
-```
-
-### 8.2 新增视图
-
-| 视图 | 作用 |
-|---|---|
-| `LoginView.vue` | "用 GitHub 登录"大按钮 |
-| `DashboardView.vue` | 我的文件列表 + 新建 + 搜索/筛选 |
-| `EditView.vue` | 改造现有 App.vue — 加"保存到云"和"分享"按钮 |
-| `UserProfileView.vue` | 某用户所有 public 文件 |
-| `PublicFileView.vue` | 直链落地页：预览 + 下载 |
-
-### 8.3 改造后的工具栏
-
-```vue
-<TopBar>
-  <input v-model="filename" />
-  <select v-model="suffix">…</select>
-  
-  <button @click="saveDraft" v-if="!isLoggedIn">保存草稿</button>
-  <button @click="saveToCloud" v-if="isLoggedIn">保存到云</button>
-  <button @click="openShareDialog" v-if="isLoggedIn">分享</button>
-  <button @click="downloadFile">下载</button>
-  
-  <UserMenu v-if="isLoggedIn" />
-  <LoginButton v-else />
-</TopBar>
-```
-
-### 8.4 状态管理
+### 7.2 状态管理
 
 ```typescript
 // src/stores/auth.ts
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
-  const isLoggedIn = computed(() => !!user.value)
+  const user = ref<{ username: string } | null>(null)
+  const isInitialized = ref(false)
   
-  async function fetchMe() {
-    user.value = await api.get('/api/auth/me').catch(() => null)
+  async function init() {
+    const status = await api.get('/api/setup/status')
+    if (!status.hasAccount) {
+      isInitialized.value = false
+      return
+    }
+    isInitialized.value = true
+    try {
+      user.value = await api.get('/api/auth/me')
+    } catch {}
   }
-  function logout() { return api.post('/api/auth/logout').then(() => user.value = null) }
   
-  return { user, isLoggedIn, fetchMe, logout }
+  async function setup(username, password) { ... }
+  async function login(username, password) { ... }
+  async function logout() { user.value = null }
+  
+  return { user, isInitialized, init, setup, login, logout }
 })
 
 // src/stores/files.ts
 export const useFilesStore = defineStore('files', () => {
   const list = ref<FileMeta[]>([])
-  async function fetchList(params) { list.value = await api.get('/api/files', { params }) }
-  async function createFile(payload) { ... }
-  async function updateFile(id, payload) { ... }
-  async function deleteFile(id) { ... }
-  async function toggleVisibility(id, visibility) { ... }
+  const current = ref<FileDetail | null>(null)
   
-  return { list, fetchList, createFile, updateFile, deleteFile, toggleVisibility }
+  async function fetchList() { list.value = await api.get('/api/files') }
+  async function create(payload) { ... }
+  async function update(id, payload) { ... }
+  async function remove(id) { ... }
+  async function setVisibility(id, visibility) { ... }
+  async function loadFile(id) { current.value = await api.get(`/api/files/${id}`) }
+  
+  return { list, current, fetchList, create, update, remove, setVisibility, loadFile }
 })
 ```
 
-### 8.5 API 客户端
+### 7.3 三个视图组件
 
-```typescript
-// src/api/client.ts
-import axios from 'axios'
+| 组件 | 作用 | 显示条件 |
+|---|---|---|
+| `SetupView.vue` | 首次注册表单 | `!isInitialized` |
+| `LoginView.vue` | 登录表单 | `isInitialized && !user` |
+| `MainView.vue` | 侧边栏 + 编辑器 | `user` 已登录 |
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
-  withCredentials: true,
-})
-
-// 自动 refresh
-api.interceptors.response.use(null, async (err) => {
-  if (err.response?.status === 401 && !err.config._retried) {
-    err.config._retried = true
-    await api.post('/api/auth/refresh')
-    return api(err.config)
-  }
-  return Promise.reject(err)
-})
+`App.vue` 只是三选一：
+```vue
+<template>
+  <SetupView v-if="!isInitialized" />
+  <LoginView v-else-if="!user" />
+  <MainView v-else />
+</template>
 ```
 
-### 8.6 分享弹窗
+### 7.4 MainView 结构
+
+```vue
+<template>
+  <div class="main-layout">
+    <aside class="sidebar">
+      <button @click="newFile">+ 新建</button>
+      <ul>
+        <li v-for="f in files" :key="f.id"
+            :class="{ active: current?.id === f.id }"
+            @click="loadFile(f.id)">
+          <span class="icon">📄</span>
+          <span class="name">{{ f.filename }}</span>
+          <button @click.stop="deleteFile(f.id)" class="delete">×</button>
+        </li>
+      </ul>
+      <button @click="logout" class="logout">⚙️ 注销</button>
+    </aside>
+    
+    <main class="editor">
+      <div class="toolbar">
+        <input v-model="filename" />
+        <select v-model="mimeType">…</select>
+        <button @click="save">保存</button>
+        <button @click="share" :disabled="!current">分享</button>
+      </div>
+      
+      <CodeEditor v-model="content" :language="language" />
+    </main>
+    
+    <ShareDialog v-model:open="shareOpen" :file="current" />
+  </div>
+</template>
+```
+
+### 7.5 分享弹窗
 
 ```vue
 <Modal v-model:open="open">
   <h2>分享文件</h2>
   
   <div v-if="file.visibility === 'public'">
+    <p>任何人可通过以下链接访问：</p>
     <CopyableInput :value="shareUrl" />
-    <p>访问次数：{{ file.viewCount }}</p>
   </div>
   
   <div v-else>
     <p>此文件目前为私密。</p>
-    <button @click="enableShare">生成公开链接</button>
+    <button @click="enableShare">生成分享链接</button>
   </div>
   
   <button @click="disableShare" v-if="file.visibility === 'public'">
-    取消公开访问
+    取消分享
   </button>
 </Modal>
 ```
 
-### 8.7 与现有草稿模式兼容
+### 7.6 与现有草稿兼容
 
 ```
-未登录用户                              登录用户
-─────────                              ───────
-新建 → 编辑 → 下载                       新建 → 编辑 → "保存到云" → 进 dashboard
-      ↓                                       ↓
-localStorage 草稿                          文件入库
-      ↓                                       ↓
-下次打开自动恢复                          "分享" → 生成直链
+未登录用户：完全使用现有功能
+  - 编辑 → localStorage 草稿
+  - 下载按钮照常工作
+  - 但 "保存" / "分享" 按钮显示为灰色，hover 提示"登录后可用"
+
+登录用户：进入 MainView，使用云端
+  - 现有编辑器组件原样复用
+  - 现有 localStorage 草稿逻辑保留作为"未保存前"的本地缓存
 ```
 
-现有用户（不想注册）完全不受影响。
+---
 
-### 8.8 Dashboard UI
+## 8. 直链服务
+
+### 8.1 路径
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  我的文件                              [+ 新建]      │
-│  [搜索…] [全部 ▾] [公开 ▾] [最新修改 ▾]            │
-├─────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │
-│  │ 📄 notes.md  │  │ 📄 config.yml│  │ 🖼️ a.png │ │
-│  │ 2.3 KB       │  │ 891 B        │  │ 1.2 MB   │ │
-│  │ 公开 · 2天前 │  │ 私密 · 1周前 │  │ 公开     │ │
-│  │ [编辑][分享] │  │ [编辑][分享] │  │ [编辑]   │ │
-│  └──────────────┘  └──────────────┘  └──────────┘ │
-└─────────────────────────────────────────────────────┘
+GET /u/:username/:filename
 ```
 
-支持：搜索、筛选 visibility、排序、分页、批量删除。
+例：`https://app.example.com/u/liubleed/notes.md`
+
+### 8.2 服务端逻辑
+
+```typescript
+fastify.get('/u/:username/:filename', async (req, reply) => {
+  const { username, filename } = req.params
+  
+  const user = await db.query.users.findFirst({ 
+    where: eq(users.username, username.toLowerCase()) 
+  })
+  if (!user) return reply.status(404).send('Not found')
+  
+  const file = await db.query.files.findFirst({ 
+    where: and(
+      eq(files.filename, filename.toLowerCase()),
+      eq(files.visibility, 'public')
+    ) 
+  })
+  if (!file) return reply.status(404).send('Not found')
+  
+  return reply
+    .header('Content-Type', file.mimeType)
+    .header('Content-Disposition', `inline; filename="${file.filename}"`)
+    .header('Cache-Control', 'public, max-age=300')
+    .send(file.content)
+})
+```
+
+### 8.3 关键点
+
+- 私密文件 → 404（**不区分"不存在"和"无权限"**，避免信息泄露）
+- 浏览器内预览：浏览器根据 mime 自动渲染（图片直接显示，文本/MD 直接显示，代码按高亮显示）
+- 缓存：5 分钟（Cloudflare/反代可再加速）
 
 ---
 
@@ -678,7 +555,7 @@ localStorage 草稿                          文件入库
 version: '3.9'
 
 services:
-  api:
+  app:
     build: ./server
     restart: unless-stopped
     ports:
@@ -686,54 +563,24 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: file:/data/topfiles.db
-      STORAGE_BACKEND: minio
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: topfiles
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_SECURE: "true"
     volumes:
       - ./data:/data
-    depends_on:
-      - minio
-
-  minio:
-    image: minio/minio:latest
-    restart: unless-stopped
-    command: server /data/minio --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
-    volumes:
-      - ./data/minio:/data/minio
-    # 不对外暴露端口 — 仅 api 内部访问
 
   web:
     build: ./web
     restart: unless-stopped
     ports:
       - "8080:80"
-
-  backup:
-    image: alpine
-    volumes:
-      - ./data:/data:ro
-      - ./backups:/backups
-    entrypoint: |
-      sh -c 'while true; do
-        ts=$$(date +%Y%m%d-%H%M%S)
-        sqlite3 /data/topfiles.db ".backup /backups/db-$$ts.db"
-        tar czf /backups/minio-$$ts.tar.gz -C /data/minio .
-        find /backups -mtime +7 -delete
-        sleep 86400
-      done'
+    depends_on:
+      - app
 ```
 
-### 9.2 反向代理（Nginx）
+后端和前端可以**共用一个镜像**（多阶段构建：先 build 前端成静态文件，再打进最终镜像由 Fastify 同时 serve `/api` 和 `/`）。
+
+### 9.2 反向代理
 
 ```nginx
 server {
@@ -744,258 +591,171 @@ server {
   ssl_certificate_key /etc/letsencrypt/live/app.example.com/privkey.pem;
   
   location / {
-    root /var/www/topfiles/web;
-    try_files $uri $uri/ /index.html;
-  }
-  
-  location /api/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 300s;
-    client_max_body_size 110m;
-  }
-  
-  location /u/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header X-Real-IP $remote_addr;
+    proxy_pass http://127.0.0.1:8080;
   }
 }
 ```
 
-### 9.3 启动顺序
+简单到不用分 api/ 反代 — 同一端口同一应用分发。
+
+### 9.3 启动
 
 ```bash
-# 1. 启动 minio，建 bucket
-docker compose up -d minio
-sleep 5
-docker compose exec minio mc alias set local http://localhost:9000 $S3_ACCESS_KEY $S3_SECRET_KEY
-docker compose exec minio mc mb local/topfiles
-docker compose exec minio mc anonymous set none local/topfiles
+# 1. 生成 JWT 密钥
+echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
 
-# 2. 启动 api
-docker compose up -d api
+# 2. 起服务
+docker compose up -d
 
-# 3. 启动 web
-docker compose up -d web
-
-# 4. 启动备份
-docker compose up -d backup
+# 3. 浏览器访问 https://app.example.com
+#    首次访问会显示"创建账号"页
 ```
 
-### 9.4 本地开发
+### 9.4 备份
 
 ```bash
-# 一键起全套
-docker compose -f docker-compose.dev.yml up
-
-# 或分别起（体验更好）
-cd server && npm run dev       # fastify 热重载
-cd web && npm run dev          # vite 热重载
-docker run -d -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin \
-  minio/minio server /data --console-address :9001
+# 每天凌晨备份一次
+docker compose exec app sqlite3 /data/topfiles.db ".backup /data/backups/db-$(date +%Y%m%d).db"
 ```
 
-### 9.5 升级到生产存储（MinIO → R2/OSS）
+或者更简单：用 cron 在宿主机执行：
+```bash
+cp /opt/topfiles/data/topfiles.db /opt/topfiles/backups/db-$(date +%Y%m%d).db
+```
 
-1. 新建 bucket、拿 access key
-2. 改环境变量：`STORAGE_BACKEND=r2`，填 `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`
-3. 数据迁移：`rclone sync minio:bucket r2:bucket`（业务 0 停机）
-4. 下线 MinIO 容器
+### 9.5 部署 checklist
 
-### 9.6 部署 checklist
-
-- [ ] 域名 + DNS 解析
-- [ ] HTTPS 证书（Let's Encrypt）
-- [ ] 服务器最低配置：1 vCPU / 1 GB RAM
+- [ ] 域名 + DNS
+- [ ] HTTPS 证书
 - [ ] `.env` 文件 700 权限
-- [ ] MinIO 控制台端口 (9001) 不对外
+- [ ] 数据目录挂载到持久卷
 - [ ] 防火墙只开 80/443
-- [ ] 备份跑通后做一次恢复演练
+- [ ] 备份恢复演练
 
 ---
 
 ## 10. 错误处理与测试
 
-### 10.1 统一错误类型
+### 10.1 错误类型
 
 ```typescript
-// server/src/errors.ts
 class AppError extends Error {
   constructor(
     public statusCode: number,
     public code: string,
-    message: string,
-    public details?: unknown
+    message: string
   ) { super(message) }
 }
 ```
 
-### 10.2 错误响应格式
+### 10.2 错误码
 
-```json
-{ "error": { "code": "FILE_NOT_FOUND", "message": "文件不存在" } }
-```
-
-### 10.3 错误码清单
-
-| HTTP | Code | 触发 | 用户提示 |
+| HTTP | Code | 触发 | 提示 |
 |---|---|---|---|
 | 400 | `INVALID_REQUEST` | 参数缺失/格式错 | 请求格式有误 |
-| 400 | `INVALID_FILENAME` | 包含非法字符 | 文件名只能包含字母数字和 . _ - |
+| 400 | `INVALID_CREDENTIALS` | 用户名或密码错 | 用户名或密码错误 |
+| 400 | `WEAK_PASSWORD` | 密码 < 8 位 | 密码至少 8 位 |
 | 401 | `UNAUTHENTICATED` | 未登录 | 请先登录 |
-| 401 | `TOKEN_EXPIRED` | refresh 后仍失败 | 登录已过期 |
-| 403 | `NOT_OWNER` | 操作别人的文件 | 无权操作此文件 |
-| 404 | `FILE_NOT_FOUND` | 文件不存在/无权 | 文件不存在 |
-| 404 | `USER_NOT_FOUND` | 用户不存在 | 用户不存在 |
-| 409 | `FILENAME_CONFLICT` | 同名已存在 | 同名文件已存在 |
-| 409 | `ETAG_MISMATCH` | 并发覆盖 | 文件已被修改，请刷新后重试 |
-| 413 | `FILE_TOO_LARGE` | 超大小 | 文件超出 100MB 限制 |
-| 413 | `QUOTA_EXCEEDED` | 配额满 | 存储空间已满 |
-| 429 | `RATE_LIMITED` | 触发限流 | 请求过于频繁 |
+| 401 | `TOKEN_EXPIRED` | refresh 失败 | 登录已过期 |
+| 404 | `NOT_FOUND` | 文件/资源不存在 | 不存在 |
+| 409 | `ALREADY_INITIALIZED` | 已注册过账号 | 系统已存在账号 |
+| 409 | `FILENAME_CONFLICT` | 同名文件 | 同名文件已存在 |
+| 413 | `CONTENT_TOO_LARGE` | > 1MB | 内容超出 1MB 限制 |
+| 429 | `RATE_LIMITED` | 限流 | 请求过于频繁 |
 | 500 | `INTERNAL` | 未捕获 | 服务器开小差 |
-| 503 | `STORAGE_UNAVAILABLE` | S3 挂了 | 存储服务暂不可用 |
 
-### 10.4 全局错误处理
+### 10.3 全局处理
 
 ```typescript
 fastify.setErrorHandler((err, req, reply) => {
   if (err instanceof AppError) {
     return reply.status(err.statusCode).send({
-      error: { code: err.code, message: err.message, details: err.details }
+      error: { code: err.code, message: err.message }
     })
   }
-  if (err.validation) {
-    return reply.status(400).send({
-      error: { code: 'INVALID_REQUEST', message: '请求参数不合法', details: err.validation }
-    })
-  }
-  logger.error({ err, path: req.url, method: req.method }, 'unhandled error')
-  Sentry.captureException(err)
+  logger.error({ err, path: req.url }, 'unhandled error')
   return reply.status(500).send({
-    error: { code: 'INTERNAL', message: '服务器开小差了' }
+    error: { code: 'INTERNAL', message: '服务器开小差' }
   })
 })
 ```
 
-### 10.5 并发控制（ETag 乐观锁）
+### 10.4 测试三层
 
-```typescript
-// PUT /api/files/:id
-// header: If-Match: "<old-etag>"
-const file = await db.getFile(id)
-if (file.etag !== oldEtag) {
-  throw new AppError(409, 'ETAG_MISMATCH', '文件已被修改')
-}
-// 计算新 etag → put S3 → update DB
-```
-
-### 10.6 限流
-
-```typescript
-import rateLimit from '@fastify/rate-limit'
-
-await fastify.register(rateLimit, { global: false })
-
-fastify.post('/api/files', {
-  config: { rateLimit: { max: 60, timeWindow: '1 minute', keyGenerator: req => req.user.id } }
-}, handler)
-
-fastify.get('/u/:username/:filename', {
-  config: { rateLimit: { max: 300, timeWindow: '1 minute', keyGenerator: req => req.ip } }
-}, handler)
-```
-
-### 10.7 测试三层
-
-**1. 单元测试（Vitest）**：
-- filename 规范化
-- etag 计算
+**1. 单元（Vitest）**：
+- filename 规范化（lowercase、非法字符、Unicode）
+- bcrypt hash 验证
 - share URL 生成
-- quota 计算
+- 限流逻辑
 
-**2. 集成测试（Vitest + 真实 SQLite + 真实 MinIO）**：
-- 文件创建/更新/删除完整流程
-- 鉴权各分支（未登录/已登录/过期）
-- 错误码 401/403/404/409/413 触发
-- ETag 并发冲突
-- 直链 304 缓存
+**2. 集成（Vitest + 真实 SQLite）**：
+- 注册 → 登录 → 创建文件 → 分享 → 公开访问完整流程
+- 重复注册返回 409
+- 错误码 400/401/404/409/413 各分支
+- 单账号 CHECK 约束
 
 **3. 端到端（Playwright）**：
-- 登录 → 创建文件 → 分享 → 复制直链 → 退出 → 隐身窗打开直链
-- 私密文件直链 → 404
-- 大文件 multipart 上传
+- 首次访问 → 创建账号 → 创建文件 → 分享 → 复制直链 → 退出登录 → 隐身窗打开直链
 
-**4. 手动 smoke test**：
-- [ ] 登录看到自己头像
-- [ ] 创建文件，dashboard 出现
-- [ ] 编辑后刷新内容还在
-- [ ] 公开后复制直链，新隐身窗能开
-- [ ] 私密后直链 404
-- [ ] 注销 cookie 清掉
-- [ ] 重新登录还能看到自己文件
-- [ ] 上传 >1MB 走 multipart
-- [ ] 上传 >100MB 触发 413
-- [ ] 改用户名，旧直链 301 到新链接
-- [ ] 两个浏览器同时编辑 → 一个收到 409
+**4. 手动 smoke**：
+- [ ] 首次访问看到"创建账号"
+- [ ] 注册后跳到主界面
+- [ ] 注销后看到"登录"
+- [ ] 第二次访问（已注册）直接看到"登录"
+- [ ] 输错密码 → 401
+- [ ] 创建文件 → 侧边栏出现
+- [ ] 编辑 → 刷新页面内容还在
+- [ ] 分享 → 复制直链
+- [ ] 隐身窗打开直链 → 看到内容
+- [ ] 私密文件直链 → 404
+- [ ] 同名文件创建 → 409
+- [ ] 超过 1MB 内容 → 413
 
-### 10.8 监控
+### 10.5 监控
 
-- **Sentry**（免费版）：5xx + 前端 JS 错误
-- **结构化日志**（pino）：写 stdout，`docker logs` 即可看
-- **健康检查**：`GET /api/health` → `{ status: 'ok', db: 'ok', storage: 'ok' }`
-- **MVP 不引入** Grafana / Prometheus / ELK
+- **Sentry**（免费版）：5xx 错误
+- **pino** 结构化日志 → stdout → `docker logs`
+- **健康检查**：`GET /api/health` → `{ status: 'ok' }`
+- **不引入** Grafana / Prometheus
 
 ---
 
-## 11. 目录结构（最终）
+## 11. 目录结构
 
 ```
 TopFiles/
-├── src/                          # 前端（现有）
-│   ├── api/client.ts
-│   ├── stores/auth.ts
-│   ├── stores/files.ts
-│   ├── router/index.ts
+├── src/                          # 前端
+│   ├── api/client.ts             # axios 实例
+│   ├── stores/
+│   │   ├── auth.ts
+│   │   └── files.ts
 │   ├── views/
-│   │   ├── HomeView.vue
+│   │   ├── SetupView.vue         # 首次注册
 │   │   ├── LoginView.vue
-│   │   ├── DashboardView.vue
-│   │   ├── EditView.vue          # 改造自 App.vue
-│   │   ├── UserProfileView.vue
-│   │   └── PublicFileView.vue
+│   │   └── MainView.vue          # 侧边栏 + 编辑器
 │   ├── components/
 │   │   ├── ShareDialog.vue
-│   │   ├── UserMenu.vue
-│   │   ├── LoginButton.vue
 │   │   ├── CopyableInput.vue
-│   │   └── ...
+│   │   ├── Sidebar.vue
+│   │   ├── TopBar.vue
+│   │   └── ...（现有组件）
+│   ├── App.vue                   # 改造：只做三选一
 │   └── ...
 ├── server/                       # 后端（新）
 │   ├── src/
 │   │   ├── server.ts             # fastify 入口
 │   │   ├── config/env.ts
 │   │   ├── db/
-│   │   │   ├── schema.ts         # drizzle schema
+│   │   │   ├── schema.ts         # drizzle
 │   │   │   ├── client.ts
 │   │   │   └── migrations/
-│   │   ├── storage/
-│   │   │   ├── adapter.ts        # 接口
-│   │   │   ├── minio.ts
-│   │   │   ├── r2.ts
-│   │   │   └── factory.ts
 │   │   ├── auth/
-│   │   │   ├── github.ts
-│   │   │   ├── jwt.ts
-│   │   │   └── middleware.ts
+│   │   │   ├── routes.ts
+│   │   │   ├── password.ts       # bcrypt
+│   │   │   └── jwt.ts
 │   │   ├── files/
 │   │   │   ├── routes.ts
-│   │   │   ├── service.ts
-│   │   │   └── filename.ts
+│   │   │   └── service.ts
 │   │   ├── share/
 │   │   │   └── routes.ts
 │   │   ├── errors.ts
@@ -1007,12 +767,9 @@ TopFiles/
 │   ├── tsconfig.json
 │   └── Dockerfile
 ├── web/e2e/                      # Playwright
-├── docs/
-│   └── superpowers/
-│       └── specs/
-│           └── 2026-07-08-topfiles-share-design.md
+├── docs/superpowers/specs/2026-07-08-topfiles-share-design.md
 ├── docker-compose.yml
-├── docker-compose.dev.yml
+├── package.json                  # 前端
 └── ...
 ```
 
@@ -1020,18 +777,17 @@ TopFiles/
 
 ## 12. 未来扩展（out of scope for MVP）
 
-- 实时协作编辑（OT/CRDT）
-- 文件夹/层级目录
-- 评论、点赞
-- 付费/会员
-- 自定义域名
-- 移动 App
-- 多语言扩展
-- CDN 加速直链分发
-- 转 Postgres（用户量增长时）
+- 多用户注册
+- 二进制文件支持（图片/pdf）
+- 文件夹/层级
+- 文件搜索/分页
+- GitHub 同步
+- 实时协作
+- 邮件通知
+- CDN 加速
 
 ---
 
 ## 13. 待定项
 
-开发时间 / 优先级排期待与产品决策后确定。
+开发时间 / 实施优先级待与产品决策后确定。
