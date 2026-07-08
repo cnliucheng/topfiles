@@ -3,23 +3,9 @@ import { AppError } from '../errors.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { signSession } from './jwt.js'
 import { buildSessionCookie, clearSessionCookie, parseCookies } from './cookies.js'
+import { readJsonBody } from '../utils/jsonBody.js'
 
 const COOKIE_MAX_AGE = 7 * 24 * 3600
-const MAX_JSON = 1024 * 1024 + 1024
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let buf = ''
-    req.on('data', c => {
-      buf += c
-      if (buf.length > MAX_JSON) { req.destroy(); reject(new Error('too large')) }
-    })
-    req.on('end', () => {
-      try { resolve(buf ? JSON.parse(buf) : {}) } catch { reject(new Error('invalid json')) }
-    })
-    req.on('error', reject)
-  })
-}
 
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress
