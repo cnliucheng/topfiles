@@ -48,4 +48,33 @@ export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, r
     res.setHeader('Set-Cookie', buildSessionCookie(jwt, { secure: cookieSecure, maxAge: COOKIE_MAX_AGE }))
     sendJson(res, 201, { username })
   }
+
+  routes['POST /api/auth/login'] = async (req, res) => {
+    const body = await readJsonBody(req)
+    const { username, password } = body
+    if (!username || !password) throw new AppError(400, 'INVALID_REQUEST', '用户名和密码必填')
+    if (rateLimit && !rateLimit.allow(`login:${getClientIp(req)}`, 5, 60000)) {
+      throw new AppError(429, 'RATE_LIMITED', '请求过于频繁')
+    }
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+    if (!user) throw new AppError(401, 'INVALID_CREDENTIALS', '用户名或密码错误')
+    const ok = await verifyPassword(password, user.password_hash)
+    if (!ok) throw new AppError(401, 'INVALID_CREDENTIALS', '用户名或密码错误')
+    const jwt = await signSession({ username: user.username }, secret)
+    res.setHeader('Set-Cookie', buildSessionCookie(jwt, { secure: cookieSecure, maxAge: COOKIE_MAX_AGE }))
+    sendJson(res, 200, { username: user.username })
+  }
+
+  routes['POST /api/auth/logout'] = (req, res) => {
+    res.setHeader('Set-Cookie', clearSessionCookie())
+    res.writeHead(204); res.end()
+  }
+
+  routes['GET /api/auth/me'] = (req, res) => {
+    const cookies = parseCookies(req.headers.cookie)
+    if (!cookies.tf_session) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
+    const user = db.prepare('SELECT username FROM users LIMIT 1').get()
+    if (!user) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
+    sendJson(res, 200, { username: user.username })
+  }
 }
