@@ -21,11 +21,16 @@ async function copy() {
     setTimeout(() => { copied.value = false }, 1500)
   }
 }
+
+function onFocus(e: FocusEvent) {
+  const t = e.target as HTMLInputElement | null
+  t?.select()
+}
 </script>
 
 <template>
   <div class="copyable">
-    <input :value="value" readonly @focus="$event.target.select()" />
+    <input :value="value" readonly @focus="onFocus" />
     <button @click="copy">{{ copied ? '已复制' : '复制' }}</button>
   </div>
 </template>

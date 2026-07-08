@@ -73,7 +73,7 @@ function openShare() {
         </div>
       </template>
     </main>
-    <ShareDialog v-model:open="shareOpen" :filename="files.current?.filename" />
+    <ShareDialog v-model:open="shareOpen" :filename="files.current?.filename ?? null" />
   </div>
 </template>
 
