@@ -1,0 +1,20 @@
+{
+  "name": "topfiles-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.0"
+  }
+}
