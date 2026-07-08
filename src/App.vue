@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CodeEditor from './components/CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from './constants/fileTypes'
+import { CORS_PROXIES } from './constants/corsProxies'
 import { LOCALE_STORAGE_KEY, type AppLocale } from './i18n'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from './utils/file'
 
@@ -16,6 +17,7 @@ const importError = ref('')
 const importLoading = ref(false)
 const importAbortController = ref<AbortController | null>(null)
 const useJinaMode = ref(false)
+const directFetchFailed = ref(false)
 const privacyMode = ref(false)
 const showPrivacyModal = ref(false)
 const pendingPrivacyMode = ref(false)
@@ -227,10 +229,12 @@ watch([fileName, ext, content], () => {
 onMounted(() => {
   document.documentElement.lang = activeLocale.value
   document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onFontSizeKeydown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onFontSizeKeydown)
 })
 
 function detectTheme(): ThemeMode {
@@ -325,6 +329,34 @@ function onDocumentClick(event: MouseEvent): void {
   }
 }
 
+/** 判断当前焦点是否在文本输入类元素上（含 CodeMirror 编辑区），避免快捷键拦截打字。 */
+function isTypingTarget(el: Element | null): boolean {
+  if (!el) return false
+  if (el.closest('.cm-editor')) return true
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable
+}
+
+function adjustFontSize(delta: number): void {
+  const next = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, editorFontSize.value + delta))
+  editorFontSize.value = next
+}
+
+/** + / = 增大字号，- / _ 减小字号；输入框与编辑区聚焦时不触发。 */
+function onFontSizeKeydown(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  const key = event.key
+  if (key !== '+' && key !== '=' && key !== '-' && key !== '_') return
+  if (isTypingTarget(document.activeElement)) return
+
+  if (key === '+' || key === '=') {
+    adjustFontSize(1)
+  } else {
+    adjustFontSize(-1)
+  }
+  event.preventDefault()
+}
+
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(0)}MB`
@@ -344,14 +376,30 @@ function applyImportedContent(name: string, text: string): void {
   }
 }
 
-function buildImportCandidates(url: string): string[] {
-  const encoded = encodeURIComponent(url)
+/** 直连获取远程文本，失败时抛错（不自动回退到第三方代理）。 */
+async function fetchDirect(url: string): Promise<string> {
+  const response = await fetchWithTimeout(url)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  return await readResponseTextWithLimit(response)
+}
 
-  return [
-    url,
-    `https://api.allorigins.win/raw?url=${encoded}`,
-    `https://cors.isomorphic-git.org/${encoded}`,
-  ]
+/** 经第三方 CORS 代理遍历获取，任一成功即返回，全失败抛最后一个错误。 */
+async function fetchViaProxies(url: string): Promise<string> {
+  let lastError: unknown = null
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const response = await fetchWithTimeout(proxy.build(url))
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      return await readResponseTextWithLimit(response)
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError ?? new Error('Proxy import failed')
 }
 
 function toJinaUrl(url: string): string {
@@ -446,36 +494,26 @@ function stripJinaHeader(text: string): string {
   return normalized
 }
 
-async function fetchTextWithFallback(url: string): Promise<string> {
-  if (useJinaMode.value) {
-    const response = await fetchWithTimeout(toJinaUrl(url))
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    const raw = await readResponseTextWithLimit(response)
-    return stripJinaHeader(raw)
+/** 经 r.jina.ai 获取并清理头部元信息（用户显式勾选时使用）。 */
+async function fetchViaJina(url: string): Promise<string> {
+  const response = await fetchWithTimeout(toJinaUrl(url))
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
   }
-
-  const candidates = buildImportCandidates(url)
-  let lastError: unknown = null
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetchWithTimeout(candidate)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      return await readResponseTextWithLimit(response)
-    } catch (error) {
-      lastError = error
-    }
-  }
-
-  throw lastError ?? new Error('Import failed')
+  const raw = await readResponseTextWithLimit(response)
+  return stripJinaHeader(raw)
 }
 
-async function importFromUrl(url: string): Promise<void> {
-  const text = await fetchTextWithFallback(url)
+async function importFromUrl(url: string, useProxy: boolean): Promise<void> {
+  let text: string
+  if (useJinaMode.value) {
+    text = await fetchViaJina(url)
+  } else if (useProxy) {
+    text = await fetchViaProxies(url)
+  } else {
+    text = await fetchDirect(url)
+  }
+
   let parsedName = 'remote-file'
   try {
     const { pathname } = new URL(url)
@@ -493,6 +531,7 @@ async function onUnifiedImport(): Promise<void> {
   importError.value = ''
   importLoading.value = false
   useJinaMode.value = false
+  directFetchFailed.value = false
   saveFocus()
   showImportModal.value = true
   void focusModalContent(importModalRef.value)
@@ -504,6 +543,7 @@ function closeImportModal(): void {
   restoreFocus()
   showImportModal.value = false
   importLoading.value = false
+  directFetchFailed.value = false
 }
 
 async function onImportFromUrl(): Promise<void> {
@@ -520,8 +560,41 @@ async function onImportFromUrl(): Promise<void> {
 
   importLoading.value = true
   importError.value = ''
+  directFetchFailed.value = false
   try {
-    await importFromUrl(normalizedUrl)
+    await importFromUrl(normalizedUrl, false)
+    closeImportModal()
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      importError.value = t('importTimeout')
+    } else if (error instanceof Error && error.message === 'too-large') {
+      importError.value = t('importTooLarge', { max: formatBytes(MAX_IMPORT_BYTES) })
+    } else if (useJinaMode.value) {
+      // jina 模式失败：jina 本身已是用户选择的第三方路径，按普通失败处理
+      importError.value = t('importFailed')
+    } else {
+      // 直连失败：不自动回退第三方代理，提示用户显式确认后再重试
+      directFetchFailed.value = true
+      importError.value = t('importDirectFailed')
+    }
+  } finally {
+    importLoading.value = false
+  }
+}
+
+/** 用户在直连失败后，显式选择经第三方代理重试。 */
+async function onRetryViaProxy(): Promise<void> {
+  const normalizedUrl = normalizeImportUrl(importUrl.value.trim())
+  if (!normalizedUrl) {
+    importError.value = t('importInvalidUrl')
+    return
+  }
+
+  importLoading.value = true
+  importError.value = ''
+  directFetchFailed.value = false
+  try {
+    await importFromUrl(normalizedUrl, true)
     closeImportModal()
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -880,19 +953,15 @@ function isTextMime(mime: string): boolean {
         <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
 
         <div class="font-size-slider" :aria-label="t('fontSize')">
-          <svg
-            class="font-slider-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
+          <button
+            type="button"
+            class="font-step-btn"
+            :aria-label="t('fontSmaller')"
+            :disabled="editorFontSize <= MIN_FONT_SIZE"
+            @click="adjustFontSize(-1)"
           >
-            <path d="M3 7V5H15V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M9 5V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M4 19H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M17 19V13L20 10L23 13V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M19 17H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
+            −
+          </button>
           <input
             type="range"
             class="font-slider-input"
@@ -902,6 +971,15 @@ function isTextMime(mime: string): boolean {
             :aria-label="t('fontSize')"
             @input="editorFontSize = Number(($event.target as HTMLInputElement).value)"
           />
+          <button
+            type="button"
+            class="font-step-btn"
+            :aria-label="t('fontLarger')"
+            :disabled="editorFontSize >= MAX_FONT_SIZE"
+            @click="adjustFontSize(1)"
+          >
+            +
+          </button>
           <span class="font-slider-value">{{ editorFontSize }}</span>
         </div>
       </section>
@@ -938,8 +1016,16 @@ function isTextMime(mime: string): boolean {
           <input v-model="useJinaMode" type="checkbox" />
           <span>{{ t('importUseJina') }}</span>
         </label>
+        <p v-if="useJinaMode" class="import-switch-hint">{{ t('importJinaHint') }}</p>
 
         <p v-if="importError" class="import-error">{{ importError }}</p>
+
+        <div v-if="directFetchFailed && !importLoading" class="import-proxy-hint">
+          <p class="proxy-hint-text">{{ t('importProxyHint') }}</p>
+          <button type="button" class="modal-btn" @click="onRetryViaProxy">
+            {{ t('retryViaProxy') }}
+          </button>
+        </div>
 
         <div class="import-actions">
           <button type="button" class="modal-btn secondary" @click="onPickLocalFile">

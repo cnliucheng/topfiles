@@ -31,6 +31,12 @@ export default {
     'Import failed. This may be caused by CORS restrictions or an inaccessible URL. Try a public direct text link.',
   importLocalFailed: 'Failed to read local file. It may be locked or inaccessible.',
   importUnsupportedType: 'Unsupported file type. Only text-based files are allowed.',
+  importDirectFailed:
+    'Direct fetch failed, likely due to CORS restrictions. You can retry via a third-party proxy.',
+  retryViaProxy: 'Retry via third-party proxy',
+  importProxyHint:
+    'Note: When retrying via proxy, the file content passes through a third-party service. Avoid sensitive content.',
+  importJinaHint: 'Note: Content is converted to Markdown via r.jina.ai. Avoid sensitive content.',
   download: 'Download File',
   clearDraft: 'Clear Draft',
   privacyModeOn: 'Privacy: On',

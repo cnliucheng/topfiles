@@ -31,6 +31,11 @@ export default {
     '导入失败。可能是跨域限制（CORS）或链接不可访问。可尝试可公开直链的文本地址。',
   importLocalFailed: '读取本地文件失败，文件可能被占用或无法访问。',
   importUnsupportedType: '不支持的文件类型，仅允许导入文本类文件。',
+  importDirectFailed:
+    '直连失败，可能是浏览器跨域（CORS）限制。可尝试经第三方代理重试。',
+  retryViaProxy: '经第三方代理重试',
+  importProxyHint: '注意：经代理重试时，文件内容会经过第三方服务，请勿用于敏感内容。',
+  importJinaHint: '注意：内容会经过 r.jina.ai 转换为 Markdown，请勿用于敏感内容。',
   download: '下载文件',
   clearDraft: '清空草稿',
   privacyModeOn: '隐私模式：开',
