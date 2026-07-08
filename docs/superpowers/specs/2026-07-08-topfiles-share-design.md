@@ -1,4 +1,4 @@
-# TopFiles 分享功能 — 极简版设计
+# TopFiles 分享功能 — 安全+最简版设计
 
 **日期**：2026-07-08
 **状态**：设计稿（待实施）
@@ -10,7 +10,7 @@
 
 ### 1.1 项目现状
 
-`TopFiles` 是一个基于 Vue 3 + Vite + TypeScript + CodeMirror 6 的纯前端在线文件编辑工具。用户输入文件名、编辑内容、点击下载到本地。
+`TopFiles` 是一个基于 Vue 3 + Vite + TypeScript + CodeMirror 6 的纯前端在线文件编辑工具。
 
 **当前限制**：无后端、无账号、无云存储、无分享链接。
 
@@ -18,31 +18,31 @@
 
 为 TopFiles 增加"在线分享"能力：
 
-- 首次访问引导注册一个账号（**全站只允许一个账号**）
-- 登录后左侧显示文件列表，右侧显示现有编辑器
+- 首次访问引导注册（**全站只允许一个账号**）
+- 登录后单页布局：左侧文件列表 + 右侧编辑器
 - 编辑完点"保存" → 入库
-- 点"分享" → 生成可读直链 `https://app/u/<username>/<filename>`
-- 直链任何人可访问，纯文本内容直接展示
+- 点"分享" → 生成可读直链 `https://app/u/<filename>`
+- 直链任何人可访问，文本内容直接展示
 - 未登录访问首页 → 显示"创建账号"或"登录"页面
 
 ### 1.3 范围
 
 **MVP 范围（in）**：
 - 首次访问引导注册（单账号）
-- 用户名 + 密码登录
+- 用户名 + 密码登录（bcrypt 哈希）
 - 登录后单页布局：左侧文件列表 + 右侧编辑器
-- 创建/编辑/删除/分享文件
-- 可读直链 `/u/:username/:filename`
-- Docker 单进程部署
+- 创建/编辑/删除文件
+- 可读直链 `/u/<filename>`
+- 单进程部署
 
 **MVP 不做（out）**：
 - 多用户注册
 - GitHub OAuth / 第三方登录
-- 二进制文件（图片/pdf/zip 等）
-- 文件夹/层级目录
-- 文件搜索/分页/筛选（简单列表即可）
-- 实时协作、评论
-- 大文件上传（> 1MB 不支持）
+- 二进制文件
+- 文件夹/层级
+- 文件搜索/分页/筛选
+- refresh token / 自动续期（JWT 过期重登即可）
+- 文件私密/公开切换（默认全公开）
 
 ---
 
@@ -50,15 +50,15 @@
 
 | 维度 | 决策 | 理由 |
 |---|---|---|
-| 账号模式 | 单账号（首次访问引导注册） | 个人项目，无需多用户管理 |
-| 认证 | 用户名 + 密码（bcrypt） | 经典方案，无第三方依赖 |
+| 账号模式 | 单账号（首次访问引导注册） | 个人项目 |
+| 认证 | 用户名 + 密码（bcrypt） | 安全 + 无第三方依赖 |
+| Token | JWT 签名 cookie（无 refresh） | 简化；过期重登 |
 | 文件范围 | 只支持文本，限 1MB | 覆盖笔记/代码/配置 95% 场景 |
-| 存储 | 全部 SQLite，**不引入 S3** | 内容直接存 TEXT 字段，部署极简 |
-| ORM | Drizzle | TS 优先、类型安全、迁移简单 |
-| 后端 | Fastify + TypeScript | 复用现有 TS 技术栈 |
-| Token | JWT + httpOnly cookie | 标准方案 |
-| 直链格式 | `/u/:username/:filename` | 可读、品牌感、SEO 友好 |
-| 部署 | Docker 单进程 | 一个 Node + 一个 .db 文件 |
+| 存储 | 全部 SQLite，**不引入 S3** | 内容直接存 TEXT 字段 |
+| 持久化 | 直写 SQL（不用 ORM） | 2 张表，5 个查询 |
+| 框架 | **Node 原生 http**（不用 Fastify） | 单文件 150 行搞定 |
+| 直链格式 | `/u/<filename>` | 单用户无需用户名段，更短 |
+| 部署 | 单 Node 进程 + 单 .db 文件 | 极简 |
 
 ---
 
@@ -67,29 +67,29 @@
 ```
 ┌──────────────────────────────────────────────┐
 │         浏览器 (Vue 3 单页应用)              │
-│  ┌──────────────────────────────────────┐   │
-│  │ 未登录：注册 / 登录页                │   │
-│  │ 登录后：侧边栏 + 编辑器              │   │
-│  └──────────────────────────────────────┘   │
+│  未登录：注册 / 登录                          │
+│  登录后：侧边栏 + 编辑器                      │
 └────────────────┬─────────────────────────────┘
                  │ HTTPS (httpOnly cookie)
                  ▼
 ┌──────────────────────────────────────────────┐
-│         Fastify API (单进程)                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │  Auth    │  │  Files   │  │  Share   │   │
-│  │ 注册/登录 │  │  CRUD    │  │  公开直链│   │
-│  └──────────┘  └──────────┘  └──────────┘   │
+│   Node http (server.js，单文件 ~150 行)      │
+│   - 路由分发                                  │
+│   - 静态文件 serve                            │
+│   - JWT 验证                                 │
 └──────────────────────┬───────────────────────┘
-                       │
+                       │ better-sqlite3
                        ▼
               ┌─────────────────┐
               │  SQLite         │
-              │  (全部数据)     │
+              │  (data.db)      │
               └─────────────────┘
 ```
 
-**没有对象存储，没有 Redis，没有队列。** 一个 Node 进程 + 一个 .db 文件搞定一切。
+**依赖清单（3 个）**：
+- `better-sqlite3`：同步 SQLite 驱动
+- `bcryptjs`：密码哈希
+- `jose`：JWT 签名/验证
 
 ---
 
@@ -98,147 +98,128 @@
 ### 4.1 表结构
 
 ```sql
--- 1. 账号表（永远只有 1 行）
-CREATE TABLE users (
-  id             INTEGER PRIMARY KEY CHECK (id = 1),  -- 强制单账号
+-- 1. 账号表（永远 1 行）
+CREATE TABLE IF NOT EXISTS users (
+  id             INTEGER PRIMARY KEY CHECK (id = 1),  -- 数据库层强制单账号
   username       TEXT UNIQUE NOT NULL COLLATE NOCASE,
   password_hash  TEXT NOT NULL,                       -- bcrypt
-  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- 2. 文件表
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  filename     TEXT NOT NULL COLLATE NOCASE,           -- 唯一
-  mime_type    TEXT NOT NULL,
-  content      TEXT NOT NULL,                          -- 文本内容直接存
+  filename     TEXT UNIQUE NOT NULL COLLATE NOCASE,
+  mime_type    TEXT NOT NULL DEFAULT 'text/plain',
+  content      TEXT NOT NULL,
   size_bytes   INTEGER NOT NULL,
-  visibility   TEXT NOT NULL DEFAULT 'private'
-                 CHECK (visibility IN ('public', 'private')),
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (filename COLLATE NOCASE)
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_files_visibility ON files(visibility);
 
--- 3. 会话表（refresh token，注销时删）
-CREATE TABLE sessions (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  refresh_token TEXT UNIQUE NOT NULL,
-  user_agent    TEXT,
-  ip            TEXT,
-  expires_at    TEXT NOT NULL,
-  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_files_updated ON files(updated_at DESC);
 ```
 
 ### 4.2 单账号强制
 
-- `users.id` 上加 `CHECK (id = 1)` — 数据库层面阻止插入第二行
-- 注册 API 检测 `COUNT(*) > 0` → 返回 409 "已存在账号，请登录"
-- 无需复杂的 admin/role 概念
+- `users.id` 加 `CHECK (id = 1)` — 阻止插入第二行
+- 注册时 `INSERT ... WHERE NOT EXISTS (SELECT 1 FROM users)`
+- 无 sessions 表（无 refresh token，JWT 7 天过期，重登即可）
 
 ### 4.3 关键设计点
 
 | 点 | 理由 |
 |---|---|
-| `users.username` COLLATE NOCASE | URL 路径统一小写 |
-| `files.filename` COLLATE NOCASE 唯一 | `Notes.md` 和 `notes.md` 视为同一文件 |
-| `content` 直接存 TEXT | 文本小，无需对象存储 |
-| `size_bytes` 冗余存储 | 列表展示用，省一次 LENGTH() |
-| `visibility` 默认 private | 注册后默认全私密，避免误分享 |
-| `WAL 模式` | 读写并发（`PRAGMA journal_mode=WAL;`） |
+| `users.id` CHECK 约束 | 数据库层强制单账号 |
+| `files.filename` COLLATE NOCASE UNIQUE | `Notes.md` 与 `notes.md` 视为同一 |
+| `content` 直接存 TEXT | 文本小，< 1MB |
+| `size_bytes` 冗余 | 列表展示用 |
+| `WAL 模式` (`PRAGMA journal_mode=WAL`) | 读写并发 |
 
 ---
 
 ## 5. API 设计
 
-### 5.1 系统元信息
+所有 JSON API 走 `/api/*`，公开直链走 `/u/*`。
+
+### 5.1 系统状态
 
 ```
 GET /api/setup/status
-  → { hasAccount: boolean }
-  未注册过 → 返回 false，前端跳"创建账号"
-  已注册 → 返回 true，前端跳"登录"
+  → 200 { hasAccount: boolean }
 ```
 
-### 5.2 认证（单账号）
+### 5.2 认证
 
 ```
 POST /api/auth/setup
   body: { username, password }
-  → 创建账号（仅在 hasAccount=false 时成功，否则 409）
-  → 自动登录（种 cookie）
-  → 201 { username }
+  → 201 { username }     首次注册成功
+  → 409 ALREADY_INITIALIZED  已有账号
 
 POST /api/auth/login
   body: { username, password }
-  → 校验密码
-  → 种 cookie
-  → 200 { username }
+  → 200 { username }     种 cookie
+  → 401 INVALID_CREDENTIALS  用户名或密码错
 
 POST /api/auth/logout
-  → 清 cookie + 删 sessions
-  → 204
-
-POST /api/auth/refresh
-  → 用 refresh token 换新 access token
-  → 200
+  → 204    清 cookie
 
 GET /api/auth/me
-  → 200 { username } or 401
+  → 200 { username }    已登录
+  → 401                  未登录
 ```
 
 ### 5.3 文件 CRUD
 
 ```
-GET    /api/files                 列出所有文件
-                                  返回：[{ id, filename, mimeType, sizeBytes, 
-                                           visibility, updatedAt }, ...]
-                                  按 updated_at DESC 排序
+GET    /api/files                  列出所有文件
+       → 200 [{ id, filename, mimeType, sizeBytes, updatedAt }, ...]
 
-POST   /api/files                 创建
-        body: { filename, content, mimeType? }
-        → 201 { id, filename, ... }
+POST   /api/files
+       body: { filename, content, mimeType? }
+       → 201 { id, filename, ... }
+       → 409 FILENAME_CONFLICT     同名文件
+       → 413 CONTENT_TOO_LARGE     > 1MB
 
-GET    /api/files/:id             获取详情 + content
-        → 200 { id, filename, content, ... }
+GET    /api/files/:id
+       → 200 { id, filename, content, mimeType, sizeBytes, updatedAt }
 
-PUT    /api/files/:id             更新内容
-        body: { content, mimeType? }
-        → 200 { id, filename, ... }
+PUT    /api/files/:id
+       body: { content, mimeType? }
+       → 200 { id, filename, ... }
 
 DELETE /api/files/:id
-        → 204
-
-PATCH  /api/files/:id             改 visibility 或 改名
-        body: { visibility? , filename? }
-        → 200 { id, filename, ... }
+       → 204
 ```
 
 ### 5.4 公开直链
 
 ```
-GET /u/:username/:filename
-  → 查 user → 查 file
-  → 私密 → 404（不暴露存在性）
-  → 公开 → 200
-       header Content-Type: <mime>
-       header Content-Disposition: inline; filename="<encoded>"
-       body: 文件内容
+GET /u/:filename
+  → 200    Content-Type: <mime>
+            Content-Disposition: inline; filename="..."
+            Body: 文件内容
+  → 404    文件不存在
 ```
 
-### 5.5 通用约定
+### 5.5 错误格式
 
-| 项 | 规则 |
+```json
+{ "error": { "code": "INVALID_CREDENTIALS", "message": "用户名或密码错误" } }
+```
+
+### 5.6 状态码
+
+| 码 | 场景 |
 |---|---|
-| 鉴权 | httpOnly cookie `tf_access`（JWT 15min）+ `tf_refresh`（30 天） |
-| 错误格式 | `{ error: { code, message } }` |
-| 状态码 | 200/201/204 成功；400 参数；401 未登录；404 不存在；409 冲突；5xx 服务端 |
-| 字符集 | UTF-8，URL 路径 `encodeURIComponent` |
-| 限流 | 登录/setup 每 IP 每分钟 5 次；其他每用户每分钟 60 次 |
+| 200/201/204 | 成功 |
+| 400 | 参数缺失或格式错 |
+| 401 | 未登录 / 凭据错 |
+| 404 | 文件不存在 |
+| 409 | 冲突（已注册/同名文件） |
+| 413 | 内容 > 1MB |
+| 500 | 未预期错误 |
 
 ---
 
@@ -247,181 +228,88 @@ GET /u/:username/:filename
 ### 6.1 注册（仅一次）
 
 ```
-┌────────────────────────────────────────────────┐
-│  首次访问：GET /api/setup/status               │
-│  返回 { hasAccount: false }                     │
-└────────────────────┬───────────────────────────┘
-                     ▼
-┌────────────────────────────────────────────────┐
-│  前端展示"创建账号"表单                          │
-│  用户填写：用户名 + 密码 + 确认密码             │
-│  提交：POST /api/auth/setup                    │
-│    body: { username, password }                 │
-└────────────────────┬───────────────────────────┘
-                     ▼
-┌────────────────────────────────────────────────┐
-│  服务端：                                       │
-│    1. 查 users 表，COUNT(*) == 0？             │
-│       否 → 409 ALREADY_INITIALIZED             │
-│    2. bcrypt.hash(password) → 存 users         │
-│    3. 签 JWT，种 cookie                         │
-│    4. 201 { username }                          │
-└────────────────────┬───────────────────────────┘
-                     ▼
-              进入主界面
+首次访问：
+  GET /api/setup/status → { hasAccount: false }
+  → 前端显示"创建账号"表单
+
+提交注册：
+  POST /api/auth/setup { username, password }
+  服务端：
+    1. 查 users 表 → 非空？409 ALREADY_INITIALIZED
+    2. 校验 username（3-32 位，[a-z0-9_-]）
+    3. 校验 password（≥ 8 位）
+    4. bcrypt.hash(password, 12) → 存 users 表（id=1）
+    5. 签 JWT（payload: { sub: 'user:1', username }, exp: +7d）
+    6. Set-Cookie: tf_session=<jwt>; HttpOnly; Secure; SameSite=Lax
+    7. 201 { username }
+  → 前端进入主界面
 ```
 
 ### 6.2 登录
 
 ```
-┌────────────────────────────────────────────────┐
-│  POST /api/auth/login                          │
-│    body: { username, password }                 │
-│  服务端：                                       │
-│    1. 查 users（按 username）                  │
-│    2. bcrypt.compare(password, password_hash)   │
-│    3. 失败 → 401 INVALID_CREDENTIALS           │
-│    4. 成功 → 签 JWT，种 cookie                  │
-│    5. 200 { username }                          │
-└────────────────────────────────────────────────┘
+POST /api/auth/login { username, password }
+  服务端：
+    1. 查 user by username
+    2. bcrypt.compare(password, user.password_hash)
+    3. 失败 → 401 INVALID_CREDENTIALS（统一消息，不区分"用户不存在"）
+    4. 成功 → 签 JWT → Set-Cookie
+    5. 200 { username }
 ```
 
-### 6.3 Cookie 与 JWT
+### 6.3 已登录态
 
 ```
-tf_access   JWT access token，15 分钟
-            httpOnly, secure, sameSite=Lax, path=/
-
-tf_refresh  32 字节随机 base64
-            httpOnly, secure, sameSite=Lax, path=/api/auth
-            30 天有效，存 sessions 表
+前端调任何 /api/* 请求时：
+  - 浏览器自动带 tf_session cookie
+  - 服务端 JWT verify → 取 sub/username
+  - 放行 / 401
 ```
 
-JWT payload：
-```json
-{ "sub": "user:1", "username": "liubleed", "iat": ..., "exp": ... }
+### 6.4 JWT 配置
+
+```javascript
+// 启动时
+const jwt = await new SignJWT({ sub: 'user:1', username })
+  .setProtectedHeader({ alg: 'HS256' })
+  .setExpirationTime('7d')
+  .sign(new TextEncoder().encode(process.env.JWT_SECRET))
+
+// 验证
+const { payload } = await jwtVerify(jwt, new TextEncoder().encode(JWT_SECRET))
 ```
-
-签名：HS256，密钥 32 字节随机，存 `.env` 的 `JWT_SECRET`。
-
-### 6.4 路由守卫
-
-前端无需 vue-router 复杂守卫：
-- 启动时调 `GET /api/setup/status`
-  - `false` → 显示"创建账号"
-  - `true` → 调 `GET /api/auth/me`
-    - 200 → 显示主界面
-    - 401 → 显示"登录"
 
 ### 6.5 安全清单
 
-- [x] 密码 bcrypt 哈希（cost = 12）
+- [x] 密码 bcrypt cost=12
 - [x] 密码最少 8 位
-- [x] 用户名 3-32 位，仅 `[a-z0-9_-]`
+- [x] 用户名 3-32 位，`[a-z0-9_-]`
 - [x] JWT HS256 + 强密钥
-- [x] cookie 全 `httpOnly + secure + sameSite=Lax`
-- [x] refresh token 存 DB 可吊销
+- [x] cookie `HttpOnly; Secure; SameSite=Lax`
 - [x] 单账号 CHECK 约束
+- [x] 登录失败统一消息（不区分"用户不存在"和"密码错"）
 - [x] 限流：登录/setup 每 IP 每分钟 5 次
+- [x] SQL 参数化（防注入）
 
 ### 6.6 环境变量
 
 ```bash
-JWT_SECRET=<32 字节随机>
-COOKIE_DOMAIN=app.example.com  # 可选
-COOKIE_SECURE=true              # 生产必须 true
 PORT=3000
-DATABASE_URL=file:/data/topfiles.db
-FRONTEND_URL=https://app.example.com
+JWT_SECRET=<32 字节随机>
+COOKIE_SECURE=true      # 生产必须 true，开发可 false
+COOKIE_DOMAIN=          # 留空用当前域
 ```
 
 ---
 
 ## 7. 前端改造
 
-### 7.1 单页布局（最简版）
+### 7.1 单页三态
 
-**砍掉路由**：整个应用就一个页面（`App.vue`），根据登录态显示不同 UI。
+整个 App 就一个组件，根据状态显示不同视图：
 
-```
-未登录态：
-┌──────────────────────────────────────┐
-│       TopFiles                       │
-│  ┌────────────────────────────────┐  │
-│  │  创建账号 / 登录                │  │
-│  │  [用户名______]                 │  │
-│  │  [密码________]                 │  │
-│  │  [ 登录 / 创建 ]                │  │
-│  └────────────────────────────────┘  │
-└──────────────────────────────────────┘
-
-登录态：
-┌─────────────────────────────────────────────────┐
-│  TopFiles                          [分享] [保存] │
-├─────────────┬───────────────────────────────────┤
-│  📄 a.md    │  文件名：[a.md            ]       │
-│  📄 b.yml   │  ─────────────────────────────────  │
-│  📄 c.json  │                                   │
-│             │  [CodeMirror 编辑区]              │
-│  [+ 新建]   │                                   │
-│             │                                   │
-│  ⚙️ 设置    │                                   │
-└─────────────┴───────────────────────────────────┘
-```
-
-### 7.2 状态管理
-
-```typescript
-// src/stores/auth.ts
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref<{ username: string } | null>(null)
-  const isInitialized = ref(false)
-  
-  async function init() {
-    const status = await api.get('/api/setup/status')
-    if (!status.hasAccount) {
-      isInitialized.value = false
-      return
-    }
-    isInitialized.value = true
-    try {
-      user.value = await api.get('/api/auth/me')
-    } catch {}
-  }
-  
-  async function setup(username, password) { ... }
-  async function login(username, password) { ... }
-  async function logout() { user.value = null }
-  
-  return { user, isInitialized, init, setup, login, logout }
-})
-
-// src/stores/files.ts
-export const useFilesStore = defineStore('files', () => {
-  const list = ref<FileMeta[]>([])
-  const current = ref<FileDetail | null>(null)
-  
-  async function fetchList() { list.value = await api.get('/api/files') }
-  async function create(payload) { ... }
-  async function update(id, payload) { ... }
-  async function remove(id) { ... }
-  async function setVisibility(id, visibility) { ... }
-  async function loadFile(id) { current.value = await api.get(`/api/files/${id}`) }
-  
-  return { list, current, fetchList, create, update, remove, setVisibility, loadFile }
-})
-```
-
-### 7.3 三个视图组件
-
-| 组件 | 作用 | 显示条件 |
-|---|---|---|
-| `SetupView.vue` | 首次注册表单 | `!isInitialized` |
-| `LoginView.vue` | 登录表单 | `isInitialized && !user` |
-| `MainView.vue` | 侧边栏 + 编辑器 | `user` 已登录 |
-
-`App.vue` 只是三选一：
 ```vue
+<!-- App.vue -->
 <template>
   <SetupView v-if="!isInitialized" />
   <LoginView v-else-if="!user" />
@@ -429,158 +317,524 @@ export const useFilesStore = defineStore('files', () => {
 </template>
 ```
 
-### 7.4 MainView 结构
-
-```vue
-<template>
-  <div class="main-layout">
-    <aside class="sidebar">
-      <button @click="newFile">+ 新建</button>
-      <ul>
-        <li v-for="f in files" :key="f.id"
-            :class="{ active: current?.id === f.id }"
-            @click="loadFile(f.id)">
-          <span class="icon">📄</span>
-          <span class="name">{{ f.filename }}</span>
-          <button @click.stop="deleteFile(f.id)" class="delete">×</button>
-        </li>
-      </ul>
-      <button @click="logout" class="logout">⚙️ 注销</button>
-    </aside>
-    
-    <main class="editor">
-      <div class="toolbar">
-        <input v-model="filename" />
-        <select v-model="mimeType">…</select>
-        <button @click="save">保存</button>
-        <button @click="share" :disabled="!current">分享</button>
-      </div>
-      
-      <CodeEditor v-model="content" :language="language" />
-    </main>
-    
-    <ShareDialog v-model:open="shareOpen" :file="current" />
-  </div>
-</template>
 ```
+未注册（isInitialized=false）：
+┌────────────────────────────────┐
+│       TopFiles                 │
+│   欢迎使用，请创建账号         │
+│   [用户名________]             │
+│   [密码________]               │
+│   [确认密码________]           │
+│   [    创建账号    ]           │
+└────────────────────────────────┘
+
+未登录（hasAccount=true, user=null）：
+┌────────────────────────────────┐
+│       TopFiles                 │
+│   [用户名________]             │
+│   [密码________]               │
+│   [    登录    ]               │
+└────────────────────────────────┘
+
+已登录（user!=null）：
+┌──────────────────────────────────────────────────┐
+│  TopFiles                          [保存] [分享]  │
+├────────────┬─────────────────────────────────────┤
+│ [+ 新建]   │  文件名：[a.md            ]         │
+│            │  ─────────────────────────────────  │
+│ 📄 a.md    │                                     │
+│ 📄 b.yml   │  [CodeMirror 编辑区]                │
+│ 📄 c.json  │                                     │
+│            │                                     │
+│ ⚙️ 注销   │                                     │
+└────────────┴─────────────────────────────────────┘
+```
+
+### 7.2 状态管理（Pinia / composable）
+
+```typescript
+// src/stores/auth.ts
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<{ username: string } | null>(null)
+  const isInitialized = ref<boolean | null>(null)  // null = 还在检查
+  
+  async function init() {
+    const { hasAccount } = await api.get('/api/setup/status')
+    isInitialized.value = hasAccount
+    if (hasAccount) {
+      try { user.value = await api.get('/api/auth/me') } catch {}
+    }
+  }
+  
+  async function setup(username: string, password: string) {
+    await api.post('/api/auth/setup', { username, password })
+    isInitialized.value = true
+    user.value = { username }
+  }
+  
+  async function login(username: string, password: string) {
+    const me = await api.post('/api/auth/login', { username, password })
+    user.value = me
+  }
+  
+  async function logout() {
+    await api.post('/api/auth/logout')
+    user.value = null
+  }
+  
+  return { user, isInitialized, init, setup, login, logout }
+})
+```
+
+```typescript
+// src/stores/files.ts
+export const useFilesStore = defineStore('files', () => {
+  const list = ref<FileMeta[]>([])
+  const current = ref<FileDetail | null>(null)
+  
+  async function fetchList() {
+    list.value = await api.get('/api/files')
+  }
+  async function create(payload: { filename: string; content: string; mimeType?: string }) {
+    const f = await api.post('/api/files', payload)
+    list.value.unshift(f)
+    current.value = f
+    return f
+  }
+  async function update(id: number, payload: { content: string; mimeType?: string }) {
+    const f = await api.put(`/api/files/${id}`, payload)
+    if (current.value?.id === id) current.value = f
+    await fetchList()
+    return f
+  }
+  async function remove(id: number) {
+    await api.delete(`/api/files/${id}`)
+    if (current.value?.id === id) current.value = null
+    list.value = list.value.filter(f => f.id !== id)
+  }
+  async function loadFile(id: number) {
+    current.value = await api.get(`/api/files/${id}`)
+  }
+  
+  return { list, current, fetchList, create, update, remove, loadFile }
+})
+```
+
+### 7.3 API 客户端
+
+```typescript
+// src/api/client.ts
+import axios from 'axios'
+
+export const api = axios.create({
+  baseURL: '',         // 同源部署
+  withCredentials: true,
+})
+
+// 401 自动跳登录（无 refresh，靠重登）
+api.interceptors.response.use(null, (err) => {
+  if (err.response?.status === 401 && !window.location.pathname.startsWith('/u/')) {
+    // 简单粗暴：清状态让 App 跳 LoginView
+    window.dispatchEvent(new CustomEvent('auth:expired'))
+  }
+  return Promise.reject(err)
+})
+```
+
+### 7.4 三个视图组件
+
+| 组件 | 作用 | 显示条件 |
+|---|---|---|
+| `SetupView.vue` | 首次注册表单 | `isInitialized === false` |
+| `LoginView.vue` | 登录表单 | `isInitialized === true && !user` |
+| `MainView.vue` | 侧边栏 + 编辑器 + 分享弹窗 | `user` 已登录 |
 
 ### 7.5 分享弹窗
 
 ```vue
 <Modal v-model:open="open">
   <h2>分享文件</h2>
-  
-  <div v-if="file.visibility === 'public'">
-    <p>任何人可通过以下链接访问：</p>
-    <CopyableInput :value="shareUrl" />
-  </div>
-  
-  <div v-else>
-    <p>此文件目前为私密。</p>
-    <button @click="enableShare">生成分享链接</button>
-  </div>
-  
-  <button @click="disableShare" v-if="file.visibility === 'public'">
-    取消分享
-  </button>
+  <p>任何人可通过以下链接访问：</p>
+  <CopyableInput :value="shareUrl" />
+  <p class="hint">文件当前为公开（TopFiles 默认所有文件可分享）</p>
 </Modal>
 ```
+
+由于默认公开，分享就是直接展示直链，无开关。
 
 ### 7.6 与现有草稿兼容
 
 ```
 未登录用户：完全使用现有功能
   - 编辑 → localStorage 草稿
-  - 下载按钮照常工作
-  - 但 "保存" / "分享" 按钮显示为灰色，hover 提示"登录后可用"
+  - 下载按钮照常
+  - "保存" / "分享" 按钮置灰，hover 提示"登录后可用"
 
-登录用户：进入 MainView，使用云端
+登录用户：进入 MainView，云端为正本
   - 现有编辑器组件原样复用
-  - 现有 localStorage 草稿逻辑保留作为"未保存前"的本地缓存
+  - 现有 localStorage 草稿作为"未保存前"本地缓存
+  - 显式 "保存" 才入库
 ```
 
 ---
 
-## 8. 直链服务
+## 8. 后端实现示例
 
-### 8.1 路径
+### 8.1 依赖（package.json）
 
+```json
+{
+  "name": "topfiles-server",
+  "type": "module",
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}
 ```
-GET /u/:username/:filename
-```
 
-例：`https://app.example.com/u/liubleed/notes.md`
+### 8.2 server.js（完整示意）
 
-### 8.2 服务端逻辑
+```javascript
+import { createServer } from 'node:http'
+import { readFile, stat } from 'node:fs/promises'
+import { join, extname, resolve } from 'node:path'
+import Database from 'better-sqlite3'
+import bcrypt from 'bcryptjs'
+import { SignJWT, jwtVerify } from 'jose'
 
-```typescript
-fastify.get('/u/:username/:filename', async (req, reply) => {
-  const { username, filename } = req.params
-  
-  const user = await db.query.users.findFirst({ 
-    where: eq(users.username, username.toLowerCase()) 
+// --- 配置 ---
+const PORT = process.env.PORT || 3000
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-only-change-me-32-bytes!!')
+const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true'
+const STATIC_DIR = resolve(process.env.STATIC_DIR || '../dist')
+const DB_PATH = process.env.DB_PATH || './data.db'
+const MAX_CONTENT = 1024 * 1024  // 1MB
+
+// --- DB ---
+const db = new Database(DB_PATH)
+db.pragma('journal_mode = WAL')
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    mime_type TEXT NOT NULL DEFAULT 'text/plain',
+    content TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_files_updated ON files(updated_at DESC);
+`)
+
+// --- 工具 ---
+const json = (res, status, body) => {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
+  res.end(JSON.stringify(body))
+}
+const err = (res, status, code, message) =>
+  json(res, status, { error: { code, message } })
+
+const setSessionCookie = (res, jwt) => {
+  const maxAge = 7 * 24 * 3600
+  const parts = [
+    `tf_session=${jwt}`,
+    'HttpOnly',
+    'SameSite=Lax',
+    `Path=/`,
+    `Max-Age=${maxAge}`,
+  ]
+  if (COOKIE_SECURE) parts.push('Secure')
+  res.setHeader('Set-Cookie', parts.join('; '))
+}
+const clearSessionCookie = (res) => {
+  res.setHeader('Set-Cookie', 'tf_session=; HttpOnly; Path=/; Max-Age=0')
+}
+
+const parseCookies = (header = '') =>
+  Object.fromEntries(header.split(';').map(c => {
+    const [k, ...v] = c.trim().split('=')
+    return [k, decodeURIComponent(v.join('='))]
+  }))
+
+const getAuth = async (req) => {
+  const cookies = parseCookies(req.headers.cookie)
+  if (!cookies.tf_session) return null
+  try {
+    const { payload } = await jwtVerify(cookies.tf_session, JWT_SECRET)
+    return payload
+  } catch { return null }
+}
+
+const readJson = (req) => new Promise((resolve, reject) => {
+  let buf = ''
+  req.on('data', c => {
+    buf += c
+    if (buf.length > MAX_CONTENT + 1024) { req.destroy(); reject(new Error('too large')) }
   })
-  if (!user) return reply.status(404).send('Not found')
-  
-  const file = await db.query.files.findFirst({ 
-    where: and(
-      eq(files.filename, filename.toLowerCase()),
-      eq(files.visibility, 'public')
-    ) 
+  req.on('end', () => {
+    try { resolve(buf ? JSON.parse(buf) : {}) } catch (e) { reject(e) }
   })
-  if (!file) return reply.status(404).send('Not found')
-  
-  return reply
-    .header('Content-Type', file.mimeType)
-    .header('Content-Disposition', `inline; filename="${file.filename}"`)
-    .header('Cache-Control', 'public, max-age=300')
-    .send(file.content)
 })
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js':   'application/javascript; charset=utf-8',
+  '.mjs':  'application/javascript; charset=utf-8',
+  '.css':  'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg':  'image/svg+xml',
+  '.png':  'image/png',
+  '.ico':  'image/x-icon',
+  '.woff2':'font/woff2',
+}
+const sniffMime = (filename) => MIME[extname(filename).toLowerCase()] || 'text/plain; charset=utf-8'
+
+// --- 路由 ---
+const routes = {
+  'GET /api/setup/status': async (req, res) => {
+    const row = db.prepare('SELECT COUNT(*) as n FROM users').get()
+    json(res, 200, { hasAccount: row.n > 0 })
+  },
+
+  'POST /api/auth/setup': async (req, res) => {
+    const { username, password } = await readJson(req)
+    if (!username || !password) return err(res, 400, 'INVALID_REQUEST', '用户名和密码必填')
+    if (!/^[a-z0-9_-]{3,32}$/i.test(username)) return err(res, 400, 'INVALID_USERNAME', '用户名 3-32 位，字母数字 _ -')
+    if (password.length < 8) return err(res, 400, 'WEAK_PASSWORD', '密码至少 8 位')
+    const n = db.prepare('SELECT COUNT(*) as n FROM users').get().n
+    if (n > 0) return err(res, 409, 'ALREADY_INITIALIZED', '已存在账号')
+    const hash = await bcrypt.hash(password, 12)
+    db.prepare('INSERT INTO users (id, username, password_hash) VALUES (1, ?, ?)').run(username, hash)
+    const jwt = await new SignJWT({ sub: 'user:1', username }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(JWT_SECRET)
+    setSessionCookie(res, jwt)
+    json(res, 201, { username })
+  },
+
+  'POST /api/auth/login': async (req, res) => {
+    const { username, password } = await readJson(req)
+    if (!username || !password) return err(res, 400, 'INVALID_REQUEST', '用户名和密码必填')
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+    if (!user) return err(res, 401, 'INVALID_CREDENTIALS', '用户名或密码错误')
+    const ok = await bcrypt.compare(password, user.password_hash)
+    if (!ok) return err(res, 401, 'INVALID_CREDENTIALS', '用户名或密码错误')
+    const jwt = await new SignJWT({ sub: 'user:1', username: user.username }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(JWT_SECRET)
+    setSessionCookie(res, jwt)
+    json(res, 200, { username: user.username })
+  },
+
+  'POST /api/auth/logout': async (req, res) => {
+    clearSessionCookie(res)
+    res.writeHead(204); res.end()
+  },
+
+  'GET /api/auth/me': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    json(res, 200, { username: auth.username })
+  },
+
+  'GET /api/files': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    const rows = db.prepare('SELECT id, filename, mime_type as mimeType, size_bytes as sizeBytes, updated_at as updatedAt FROM files ORDER BY updated_at DESC').all()
+    json(res, 200, rows)
+  },
+
+  'POST /api/files': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    const { filename, content, mimeType } = await readJson(req)
+    if (!filename) return err(res, 400, 'INVALID_REQUEST', '文件名必填')
+    if (typeof content !== 'string') return err(res, 400, 'INVALID_REQUEST', 'content 必填')
+    if (Buffer.byteLength(content, 'utf8') > MAX_CONTENT) return err(res, 413, 'CONTENT_TOO_LARGE', '内容超出 1MB')
+    try {
+      const info = db.prepare('INSERT INTO files (filename, content, mime_type, size_bytes) VALUES (?, ?, ?, ?)')
+        .run(filename, content, mimeType || sniffMime(filename), Buffer.byteLength(content, 'utf8'))
+      const row = db.prepare('SELECT id, filename, mime_type as mimeType, size_bytes as sizeBytes, updated_at as updatedAt FROM files WHERE id = ?').get(info.lastInsertRowid)
+      json(res, 201, row)
+    } catch (e) {
+      if (String(e).includes('UNIQUE')) return err(res, 409, 'FILENAME_CONFLICT', '同名文件已存在')
+      throw e
+    }
+  },
+
+  'GET /api/files/:id': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    const row = db.prepare('SELECT id, filename, content, mime_type as mimeType, size_bytes as sizeBytes, updated_at as updatedAt FROM files WHERE id = ?').get(+req.params.id)
+    if (!row) return err(res, 404, 'NOT_FOUND', '文件不存在')
+    json(res, 200, row)
+  },
+
+  'PUT /api/files/:id': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    const { content, mimeType } = await readJson(req)
+    if (typeof content !== 'string') return err(res, 400, 'INVALID_REQUEST', 'content 必填')
+    if (Buffer.byteLength(content, 'utf8') > MAX_CONTENT) return err(res, 413, 'CONTENT_TOO_LARGE', '内容超出 1MB')
+    const existing = db.prepare('SELECT * FROM files WHERE id = ?').get(+req.params.id)
+    if (!existing) return err(res, 404, 'NOT_FOUND', '文件不存在')
+    db.prepare('UPDATE files SET content = ?, mime_type = ?, size_bytes = ?, updated_at = datetime("now") WHERE id = ?')
+      .run(content, mimeType || existing.mime_type, Buffer.byteLength(content, 'utf8'), +req.params.id)
+    const row = db.prepare('SELECT id, filename, mime_type as mimeType, size_bytes as sizeBytes, updated_at as updatedAt FROM files WHERE id = ?').get(+req.params.id)
+    json(res, 200, row)
+  },
+
+  'DELETE /api/files/:id': async (req, res) => {
+    const auth = await getAuth(req)
+    if (!auth) return err(res, 401, 'UNAUTHENTICATED', '请先登录')
+    db.prepare('DELETE FROM files WHERE id = ?').run(+req.params.id)
+    res.writeHead(204); res.end()
+  },
+
+  'GET /u/:filename': async (req, res) => {
+    const row = db.prepare('SELECT filename, content, mime_type FROM files WHERE filename = ?').get(req.params.filename)
+    if (!row) { res.writeHead(404); return res.end('Not found') }
+    res.writeHead(200, {
+      'Content-Type': row.mime_type || 'text/plain; charset=utf-8',
+      'Content-Disposition': `inline; filename="${encodeURIComponent(row.filename)}"`,
+      'Cache-Control': 'public, max-age=60',
+    })
+    res.end(row.content)
+  },
+}
+
+// --- 派发 ---
+const matchRoute = (method, path) => {
+  for (const [k, handler] of Object.entries(routes)) {
+    const [m, p] = k.split(' ')
+    if (m !== method) continue
+    if (p.includes(':')) {
+      const parts = p.split('/'); const pp = path.split('/')
+      if (parts.length !== pp.length) continue
+      const params = {}
+      let ok = true
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i].startsWith(':')) params[parts[i].slice(1)] = decodeURIComponent(pp[i])
+        else if (parts[i] !== pp[i]) { ok = false; break }
+      }
+      if (ok) return { handler, params }
+    } else if (p === path) {
+      return { handler, params: {} }
+    }
+  }
+  return null
+}
+
+// --- 静态文件 ---
+const serveStatic = async (req, res, path) => {
+  try {
+    let filePath = join(STATIC_DIR, path === '/' ? '/index.html' : path)
+    let st
+    try { st = await stat(filePath) } catch { filePath = join(STATIC_DIR, 'index.html'); st = await stat(filePath) }
+    if (st.isDirectory()) filePath = join(filePath, 'index.html')
+    const data = await readFile(filePath)
+    res.writeHead(200, { 'Content-Type': sniffMime(filePath), 'Cache-Control': 'public, max-age=300' })
+    res.end(data)
+  } catch { res.writeHead(404); res.end('Not found') }
+}
+
+// --- 入口限流（内存版）---
+const limitBuckets = new Map()
+const limit = (key, max, windowMs) => {
+  const now = Date.now()
+  const b = limitBuckets.get(key) || { count: 0, resetAt: now + windowMs }
+  if (now > b.resetAt) { b.count = 0; b.resetAt = now + windowMs }
+  b.count++
+  limitBuckets.set(key, b)
+  return b.count <= max
+}
+
+// --- server ---
+const server = createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, 'http://x')
+    const m = matchRoute(req.method, url.pathname)
+    if (m) {
+      req.params = m.params
+      // 限流：登录/setup 每 IP 每分钟 5 次
+      if (url.pathname === '/api/auth/login' || url.pathname === '/api/auth/setup') {
+        const ip = req.socket.remoteAddress
+        if (!limit(`auth:${ip}`, 5, 60000)) return err(res, 429, 'RATE_LIMITED', '请求过于频繁')
+      }
+      return await m.handler(req, res)
+    }
+    if (req.method === 'GET') return await serveStatic(req, res, url.pathname)
+    res.writeHead(404); res.end('Not found')
+  } catch (e) {
+    console.error(e)
+    json(res, 500, { error: { code: 'INTERNAL', message: '服务器开小差' } })
+  }
+})
+
+server.listen(PORT, () => console.log(`TopFiles server on :${PORT}`))
 ```
 
-### 8.3 关键点
-
-- 私密文件 → 404（**不区分"不存在"和"无权限"**，避免信息泄露）
-- 浏览器内预览：浏览器根据 mime 自动渲染（图片直接显示，文本/MD 直接显示，代码按高亮显示）
-- 缓存：5 分钟（Cloudflare/反代可再加速）
+> 上面约 150-180 行。**真实工程里还会拆几个文件**（db、auth、files、share、utils），但逻辑就这些。
 
 ---
 
 ## 9. 部署
 
-### 9.1 Docker Compose
+### 9.1 直接跑
 
-```yaml
-# docker-compose.yml
-version: '3.9'
+```bash
+# 服务器
+git clone <repo>
+cd topfiles/server
+npm ci
 
-services:
-  app:
-    build: ./server
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: file:/data/topfiles.db
-      JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: ${FRONTEND_URL}
-      COOKIE_SECURE: "true"
-    volumes:
-      - ./data:/data
+# 前端构建
+cd ../  # 项目根
+npm ci
+npm run build      # 产物在 dist/
 
-  web:
-    build: ./web
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    depends_on:
-      - app
+# 起服务
+cd server
+JWT_SECRET=$(openssl rand -hex 32) \
+COOKIE_SECURE=true \
+STATIC_DIR=../dist \
+PORT=3000 \
+node server.js
 ```
 
-后端和前端可以**共用一个镜像**（多阶段构建：先 build 前端成静态文件，再打进最终镜像由 Fastify 同时 serve `/api` 和 `/`）。
+### 9.2 systemd 服务
 
-### 9.2 反向代理
+```ini
+# /etc/systemd/system/topfiles.service
+[Unit]
+Description=TopFiles
+After=network.target
+
+[Service]
+Type=simple
+User=topfiles
+WorkingDirectory=/opt/topfiles/server
+EnvironmentFile=/opt/topfiles/server/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl enable --now topfiles
+```
+
+### 9.3 反向代理
 
 ```nginx
 server {
@@ -590,109 +844,69 @@ server {
   ssl_certificate /etc/letsencrypt/live/app.example.com/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/app.example.com/privkey.pem;
   
+  client_max_body_size 2m;
+  
   location / {
-    proxy_pass http://127.0.0.1:8080;
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   }
 }
-```
-
-简单到不用分 api/ 反代 — 同一端口同一应用分发。
-
-### 9.3 启动
-
-```bash
-# 1. 生成 JWT 密钥
-echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
-
-# 2. 起服务
-docker compose up -d
-
-# 3. 浏览器访问 https://app.example.com
-#    首次访问会显示"创建账号"页
 ```
 
 ### 9.4 备份
 
 ```bash
-# 每天凌晨备份一次
-docker compose exec app sqlite3 /data/topfiles.db ".backup /data/backups/db-$(date +%Y%m%d).db"
-```
-
-或者更简单：用 cron 在宿主机执行：
-```bash
-cp /opt/topfiles/data/topfiles.db /opt/topfiles/backups/db-$(date +%Y%m%d).db
+# 加 cron：每天凌晨 3 点备份
+0 3 * * * cp /opt/topfiles/data.db /opt/topfiles/backups/data-$(date +\%Y\%m\%d).db && find /opt/topfiles/backups -mtime +30 -delete
 ```
 
 ### 9.5 部署 checklist
 
 - [ ] 域名 + DNS
 - [ ] HTTPS 证书
-- [ ] `.env` 文件 700 权限
-- [ ] 数据目录挂载到持久卷
+- [ ] `.env` 700 权限
 - [ ] 防火墙只开 80/443
+- [ ] 数据目录持久
 - [ ] 备份恢复演练
 
 ---
 
 ## 10. 错误处理与测试
 
-### 10.1 错误类型
-
-```typescript
-class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    public code: string,
-    message: string
-  ) { super(message) }
-}
-```
-
-### 10.2 错误码
+### 10.1 错误码
 
 | HTTP | Code | 触发 | 提示 |
 |---|---|---|---|
 | 400 | `INVALID_REQUEST` | 参数缺失/格式错 | 请求格式有误 |
-| 400 | `INVALID_CREDENTIALS` | 用户名或密码错 | 用户名或密码错误 |
+| 400 | `INVALID_USERNAME` | 用户名格式错 | 用户名格式：3-32 位，字母数字 _ - |
 | 400 | `WEAK_PASSWORD` | 密码 < 8 位 | 密码至少 8 位 |
 | 401 | `UNAUTHENTICATED` | 未登录 | 请先登录 |
-| 401 | `TOKEN_EXPIRED` | refresh 失败 | 登录已过期 |
-| 404 | `NOT_FOUND` | 文件/资源不存在 | 不存在 |
-| 409 | `ALREADY_INITIALIZED` | 已注册过账号 | 系统已存在账号 |
+| 401 | `INVALID_CREDENTIALS` | 用户名/密码错 | 用户名或密码错误 |
+| 404 | `NOT_FOUND` | 文件不存在 | 文件不存在 |
+| 409 | `ALREADY_INITIALIZED` | 已注册过 | 系统已存在账号 |
 | 409 | `FILENAME_CONFLICT` | 同名文件 | 同名文件已存在 |
 | 413 | `CONTENT_TOO_LARGE` | > 1MB | 内容超出 1MB 限制 |
 | 429 | `RATE_LIMITED` | 限流 | 请求过于频繁 |
-| 500 | `INTERNAL` | 未捕获 | 服务器开小差 |
+| 500 | `INTERNAL` | 未预期 | 服务器开小差 |
 
-### 10.3 全局处理
-
-```typescript
-fastify.setErrorHandler((err, req, reply) => {
-  if (err instanceof AppError) {
-    return reply.status(err.statusCode).send({
-      error: { code: err.code, message: err.message }
-    })
-  }
-  logger.error({ err, path: req.url }, 'unhandled error')
-  return reply.status(500).send({
-    error: { code: 'INTERNAL', message: '服务器开小差' }
-  })
-})
-```
-
-### 10.4 测试三层
+### 10.2 测试三层
 
 **1. 单元（Vitest）**：
-- filename 规范化（lowercase、非法字符、Unicode）
-- bcrypt hash 验证
-- share URL 生成
+- filename 规范化（小写、非法字符、Unicode）
+- bcrypt hash/compare
+- JWT sign/verify
 - 限流逻辑
+- mime 推断
 
 **2. 集成（Vitest + 真实 SQLite）**：
 - 注册 → 登录 → 创建文件 → 分享 → 公开访问完整流程
 - 重复注册返回 409
-- 错误码 400/401/404/409/413 各分支
+- 错误码各分支（400/401/404/409/413/429）
 - 单账号 CHECK 约束
+- 同名文件冲突
 
 **3. 端到端（Playwright）**：
 - 首次访问 → 创建账号 → 创建文件 → 分享 → 复制直链 → 退出登录 → 隐身窗打开直链
@@ -704,19 +918,12 @@ fastify.setErrorHandler((err, req, reply) => {
 - [ ] 第二次访问（已注册）直接看到"登录"
 - [ ] 输错密码 → 401
 - [ ] 创建文件 → 侧边栏出现
-- [ ] 编辑 → 刷新页面内容还在
+- [ ] 编辑 → 刷新内容还在
 - [ ] 分享 → 复制直链
 - [ ] 隐身窗打开直链 → 看到内容
-- [ ] 私密文件直链 → 404
+- [ ] 输错直链文件名 → 404
 - [ ] 同名文件创建 → 409
 - [ ] 超过 1MB 内容 → 413
-
-### 10.5 监控
-
-- **Sentry**（免费版）：5xx 错误
-- **pino** 结构化日志 → stdout → `docker logs`
-- **健康检查**：`GET /api/health` → `{ status: 'ok' }`
-- **不引入** Grafana / Prometheus
 
 ---
 
@@ -725,51 +932,32 @@ fastify.setErrorHandler((err, req, reply) => {
 ```
 TopFiles/
 ├── src/                          # 前端
-│   ├── api/client.ts             # axios 实例
+│   ├── api/client.ts
 │   ├── stores/
 │   │   ├── auth.ts
 │   │   └── files.ts
 │   ├── views/
-│   │   ├── SetupView.vue         # 首次注册
+│   │   ├── SetupView.vue
 │   │   ├── LoginView.vue
-│   │   └── MainView.vue          # 侧边栏 + 编辑器
+│   │   └── MainView.vue
 │   ├── components/
 │   │   ├── ShareDialog.vue
 │   │   ├── CopyableInput.vue
 │   │   ├── Sidebar.vue
 │   │   ├── TopBar.vue
-│   │   └── ...（现有组件）
+│   │   └── ...（现有）
 │   ├── App.vue                   # 改造：只做三选一
 │   └── ...
-├── server/                       # 后端（新）
-│   ├── src/
-│   │   ├── server.ts             # fastify 入口
-│   │   ├── config/env.ts
-│   │   ├── db/
-│   │   │   ├── schema.ts         # drizzle
-│   │   │   ├── client.ts
-│   │   │   └── migrations/
-│   │   ├── auth/
-│   │   │   ├── routes.ts
-│   │   │   ├── password.ts       # bcrypt
-│   │   │   └── jwt.ts
-│   │   ├── files/
-│   │   │   ├── routes.ts
-│   │   │   └── service.ts
-│   │   ├── share/
-│   │   │   └── routes.ts
-│   │   ├── errors.ts
-│   │   └── plugins/
-│   │       ├── ratelimit.ts
-│   │       └── sentry.ts
-│   ├── test/
+├── server/                       # 后端
+│   ├── server.js                 # 主入口（~150 行）
 │   ├── package.json
-│   ├── tsconfig.json
-│   └── Dockerfile
+│   ├── .env.example
+│   ├── data.db                   # SQLite（gitignore）
+│   ├── data/                     # 备份目录
+│   └── test/
 ├── web/e2e/                      # Playwright
 ├── docs/superpowers/specs/2026-07-08-topfiles-share-design.md
-├── docker-compose.yml
-├── package.json                  # 前端
+├── package.json
 └── ...
 ```
 
@@ -777,14 +965,14 @@ TopFiles/
 
 ## 12. 未来扩展（out of scope for MVP）
 
-- 多用户注册
-- 二进制文件支持（图片/pdf）
-- 文件夹/层级
+- 多用户
+- 二进制文件
+- 文件夹
 - 文件搜索/分页
 - GitHub 同步
 - 实时协作
-- 邮件通知
-- CDN 加速
+- refresh token
+- 文件 visibility
 
 ---
 
