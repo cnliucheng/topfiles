@@ -52,7 +52,7 @@ export function request(server, method, path, body, headers = {}) {
         })
         const text = await res.text()
         server.close()
-        resolve({ status: res.status, body: text, json: () => JSON.parse(text) })
+        resolve({ status: res.status, body: text, json: () => JSON.parse(text), headers: res.headers })
       } catch (e) { server.close(); reject(e) }
     })
   })
