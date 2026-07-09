@@ -16,6 +16,8 @@
   --editor-gutter-border: #e2e8f0;
   --editor-active-gutter: #eef2ff;
   --editor-caret: #2563eb;
+  --editor-selection: #cbd5e1;
+  --editor-selection-focus: #93b4f0;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -41,6 +43,8 @@
   --editor-gutter-border: #303746;
   --editor-active-gutter: #232b3a;
   --editor-caret: #60a5fa;
+  --editor-selection: #3b3f4a;
+  --editor-selection-focus: #4b6080;
   --scrollbar-thumb: #3b3f4a;
   --scrollbar-thumb-hover: #525766;
 }

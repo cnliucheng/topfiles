@@ -68,6 +68,12 @@ onMounted(() => {
           backgroundColor: 'var(--editor-bg)',
           color: 'var(--editor-text)'
         },
+        '.cm-selectionBackground': {
+          backgroundColor: 'var(--editor-selection) !important'
+        },
+        '&.cm-focused .cm-selectionBackground': {
+          backgroundColor: 'var(--editor-selection-focus) !important'
+        },
         '.cm-scroller': {
           fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
           fontSize: 'var(--editor-font-size, 13px)',
