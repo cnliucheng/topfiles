@@ -37,6 +37,7 @@ function onFocus(e: FocusEvent) {
 
 <style scoped>
 .copyable { display: flex; gap: 0.5rem; }
-.copyable input { flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; font-family: monospace; }
+.copyable input { flex: 1; padding: 0.5rem; border: 1px solid var(--border, #ccc); border-radius: 6px; font-family: monospace; background: var(--bg-panel, white); color: var(--text-main); }
 .copyable button { padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--primary, #3b82f6); color: white; cursor: pointer; }
+.copyable button:hover { background: var(--primary-hover, #2563eb); }
 </style>

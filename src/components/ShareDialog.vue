@@ -27,9 +27,10 @@ function close() { emit('update:open', false) }
 
 <style scoped>
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: var(--bg, white); padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; }
+.modal { background: var(--bg-card, white); color: var(--text-main); padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; border: 1px solid var(--border); }
 .modal h2 { margin: 0 0 1rem; }
 .modal p { margin: 0 0 0.75rem; }
-.hint { color: #888; font-size: 0.85rem; margin-top: 1rem; }
-.close-btn { margin-top: 1rem; padding: 0.5rem 1rem; border: 1px solid #ccc; background: transparent; border-radius: 6px; cursor: pointer; }
+.hint { color: var(--text-sub, #888); font-size: 0.85rem; margin-top: 1rem; }
+.close-btn { margin-top: 1rem; padding: 0.5rem 1rem; border: 1px solid var(--border); background: transparent; color: var(--text-main); border-radius: 6px; cursor: pointer; }
+.close-btn:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
 </style>
