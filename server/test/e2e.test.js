@@ -50,8 +50,7 @@ describe('end-to-end flow', () => {
 
     res = await request(server, 'GET', '/u/hello.md')
     expect(res.status).toBe(200)
-    expect(res.body).toContain('# Updated')
-    expect(res.body).toContain('prefers-color-scheme')
+    expect(res.body).toBe('# Updated')
 
     res = await request(server, 'DELETE', `/api/files/${fileId}`, undefined, auth)
     expect(res.status).toBe(204)
