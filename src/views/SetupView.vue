@@ -69,14 +69,16 @@ async function onSubmit() {
 
 <style scoped>
 .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.card { width: 100%; max-width: 380px; padding: 2rem; border: 1px solid var(--border, #ddd); border-radius: 12px; }
+.card { width: 100%; max-width: 380px; padding: 2rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text-main); }
 h1 { margin: 0 0 0.5rem; }
-.hint { color: #666; margin-bottom: 1.5rem; font-size: 0.9rem; }
+.hint { color: var(--text-sub); margin-bottom: 1.5rem; font-size: 0.9rem; }
 label { display: block; margin-bottom: 0.5rem; }
-label > span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
-input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-.err { color: #c33; font-size: 0.8rem; margin: 0.25rem 0 0.5rem; }
-.err-banner { padding: 0.5rem; background: #fee; border-radius: 4px; }
-button { width: 100%; padding: 0.75rem; margin-top: 1rem; border: none; border-radius: 6px; background: var(--primary, #3b82f6); color: white; cursor: pointer; }
+label > span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-sub); }
+input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; background: var(--bg-panel); color: var(--text-main); }
+input:focus { border-color: var(--primary); outline: none; }
+.err { color: #ef4444; font-size: 0.8rem; margin: 0.25rem 0 0.5rem; }
+.err-banner { padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 4px; }
+button { width: 100%; padding: 0.75rem; margin-top: 1rem; border: none; border-radius: 6px; background: var(--primary); color: white; cursor: pointer; }
+button:hover { background: var(--primary-hover); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
