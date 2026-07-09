@@ -2,14 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useAuthStore } from './stores/auth'
 import LegacyEditor from './components/LegacyEditor.vue'
-import SetupView from './views/SetupView.vue'
 import LoginView from './views/LoginView.vue'
-import MainView from './views/MainView.vue'
+import SetupView from './views/SetupView.vue'
 
 const auth = useAuthStore()
 const showAuthModal = ref(false)
 
-// 登录按钮：弹出 LoginView 或 SetupView
 function onLoginClick() {
   showAuthModal.value = true
 }
@@ -24,20 +22,30 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 已登录：云端主界面 -->
-  <MainView v-if="auth.isLoggedIn" />
+  <!-- 登录按钮（右上角，只在未登录时显示） -->
+  <button
+    v-if="!auth.isLoggedIn"
+    class="global-login-trigger"
+    @click="onLoginClick"
+  >
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+      <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8" />
+    </svg>
+    <span>登录 / 注册</span>
+  </button>
 
-  <!-- 未登录：原版编辑器 + 登录入口 -->
-  <div v-else class="app-wrapper">
-    <LegacyEditor />
-    <!-- 登录按钮（固定在工具栏右侧） -->
-    <button class="global-login-trigger" @click="onLoginClick">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-        <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8" />
-      </svg>
-      <span>登录 / 注册</span>
-    </button>
+  <!-- 主界面：始终显示编辑器，登录后左侧加文件列表 -->
+  <div class="app-layout">
+    <!-- 左侧文件列表（只在登录后显示） -->
+    <aside v-if="auth.isLoggedIn" class="sidebar">
+      <Sidebar />
+    </aside>
+
+    <!-- 右侧编辑器区域（始终显示） -->
+    <main class="editor-main">
+      <LegacyEditor />
+    </main>
   </div>
 
   <!-- 登录/注册弹窗 -->
@@ -51,8 +59,44 @@ onMounted(() => {
   </div>
 </template>
 
+<script lang="ts">
+import Sidebar from './components/Sidebar.vue'
+
+export default {
+  components: { Sidebar }
+}
+</script>
+
 <style>
-/* 全局样式：登录按钮固定在工具栏右侧 */
+/* 主布局：flex 左右排列 */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* 左侧文件列表 */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  border-right: 1px solid var(--border, #ddd);
+  background: var(--bg, #fafafa);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .sidebar {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+/* 右侧编辑器（flex: 1 填满剩余空间） */
+.editor-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 登录按钮（固定在右上角） */
 .global-login-trigger {
   position: fixed;
   top: 12px;
@@ -143,7 +187,7 @@ onMounted(() => {
   color: #666;
 }
 
-/* SetupView/LoginView 需要适配弹窗 */
+/* 弹窗内表单样式 */
 .auth-modal-content .auth-page {
   min-height: auto;
   padding: 0;
@@ -159,12 +203,7 @@ onMounted(() => {
   color: #e0e0e0;
 }
 
-.app-wrapper {
-  position: relative;
-  min-height: 100vh;
-}
-
-/* 暗黑模式：SetupView/LoginView 内部元素 */
+/* 暗黑模式：输入框等 */
 [data-theme="dark"] .auth-modal-content :deep(input) {
   background: #2a2a2a;
   border-color: #444;
