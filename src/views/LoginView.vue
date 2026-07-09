@@ -66,4 +66,10 @@ input:focus { border-color: var(--primary); outline: none; }
 button { width: 100%; padding: 0.75rem; margin-top: 1rem; border: none; border-radius: 6px; background: var(--primary); color: white; cursor: pointer; }
 button:hover { background: var(--primary-hover); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 暗黑模式 */
+:global([data-theme="dark"]) .card { background: #1e1e1e; color: #e0e0e0; border-color: #333; }
+:global([data-theme="dark"]) input { background: #2a2a2a; border-color: #444; color: #e0e0e0; }
+:global([data-theme="dark"]) label > span { color: #888; }
+:global([data-theme="dark"]) .hint { color: #888; }
 </style>
