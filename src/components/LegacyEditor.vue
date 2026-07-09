@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useFilesStore } from '../stores/files'
+import { useAuthStore } from '../stores/auth'
 import CodeEditor from './CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from '../i18n'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from '../utils/file'
+
+const filesStore = useFilesStore()
+const authStore = useAuthStore()
 
 const fileName = ref('untitled')
 const ext = ref<FileExtension>('txt')
@@ -170,6 +175,7 @@ function loadDraft(): void {
 function saveDraft(): void {
   if (privacyMode.value) return
 
+  // 保存到 localStorage
   safeSetStorage(
     DRAFT_STORAGE_KEY,
     JSON.stringify({
@@ -179,6 +185,16 @@ function saveDraft(): void {
       savedAt: Date.now()
     })
   )
+
+  // 如果登录且有云端文件，异步保存到云端
+  if (authStore.isLoggedIn && filesStore.current) {
+    filesStore.update(filesStore.current.id, {
+      content: content.value,
+      mimeType: getMimeType(ext.value)
+    }).catch(() => {
+      // 静默失败，不阻塞本地保存
+    })
+  }
 }
 
 watch(
@@ -219,6 +235,19 @@ watch(
 )
 
 loadDraft()
+
+// 监听云端文件加载（登录后点击侧边栏文件）
+watch(() => filesStore.current, (newFile) => {
+  if (newFile && authStore.isLoggedIn) {
+    // 加载云端文件内容
+    content.value = newFile.content
+    fileName.value = newFile.filename.replace(/\.[^/.]+$/, '') || 'untitled'
+    const detected = inferSupportedExtension(newFile.filename)
+    if (detected) {
+      ext.value = detected as FileExtension
+    }
+  }
+})
 
 watch([fileName, ext, content], () => {
   saveDraft()
@@ -273,9 +302,37 @@ function selectFileType(nextExt: FileExtension): void {
   showFileTypeMenu.value = false
 }
 
+// 保存到云端
+async function onSaveToCloud(): Promise<void> {
+  if (!authStore.isLoggedIn) return
+
+  const fullFilename = `${fileName.value}.${ext.value}`
+
+  try {
+    if (filesStore.current) {
+      // 更新现有文件
+      await filesStore.update(filesStore.current.id, {
+        content: content.value,
+        mimeType: getMimeType(ext.value)
+      })
+      alert('已保存到云端')
+    } else {
+      // 创建新文件
+      await filesStore.create({
+        filename: fullFilename,
+        content: content.value,
+        mimeType: getMimeType(ext.value)
+      })
+      alert('已创建云端文件')
+    }
+  } catch (e: any) {
+    alert(e.response?.data?.error?.message || '保存失败')
+  }
+}
+
 function onDownload(): void {
   const detectedExt = inferSupportedExtension(fileName.value)
-  const finalExt = detectedExt ?? ext.value
+  const finalExt = (detectedExt ?? ext.value) as FileExtension
   const finalFileName = buildFileName(fileName.value, finalExt)
   const mime = getMimeType(finalExt)
   downloadFile(content.value, finalFileName, mime)
@@ -818,6 +875,27 @@ function isTextMime(mime: string): boolean {
         </div>
 
         <div class="toolbar-actions">
+          <!-- 保存到云端按钮（登录后显示） -->
+          <button
+            v-if="authStore.isLoggedIn"
+            type="button"
+            class="download-btn action-with-icon"
+            @click="onSaveToCloud"
+          >
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M19 21H5C3.9 21 3 20.1 3 19V5C3 3.9 3.9 3 5 3H16L21 8V19C21 20.1 20.1 21 19 21Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 21V13H7V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 3V8H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>保存</span>
+          </button>
+
           <button type="button" class="download-btn action-with-icon" @click="onDownload">
             <svg
               class="btn-icon"
