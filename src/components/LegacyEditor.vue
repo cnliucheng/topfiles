@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFilesStore } from '../stores/files'
 import { useAuthStore } from '../stores/auth'
+import { useDialogStore } from '../stores/dialog'
 import CodeEditor from './CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from '../i18n'
@@ -10,6 +11,7 @@ import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } fro
 
 const filesStore = useFilesStore()
 const authStore = useAuthStore()
+const dialog = useDialogStore()
 
 const fileName = ref('untitled')
 const ext = ref<FileExtension>('txt')
@@ -315,7 +317,7 @@ async function onSaveToCloud(): Promise<void> {
         content: content.value,
         mimeType: getMimeType(ext.value)
       })
-      alert('已保存到云端')
+      await dialog.alert('已保存到云端', '保存成功')
     } else {
       // 创建新文件
       await filesStore.create({
@@ -323,10 +325,10 @@ async function onSaveToCloud(): Promise<void> {
         content: content.value,
         mimeType: getMimeType(ext.value)
       })
-      alert('已创建云端文件')
+      await dialog.alert('已创建云端文件', '创建成功')
     }
   } catch (e: any) {
-    alert(e.response?.data?.error?.message || '保存失败')
+    await dialog.alert(e.response?.data?.error?.message || '保存失败', '错误')
   }
 }
 

@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useFilesStore } from '../stores/files'
 import { useAuthStore } from '../stores/auth'
+import { useDialogStore } from '../stores/dialog'
 import ShareDialog from './ShareDialog.vue'
 
 const files = useFilesStore()
 const auth = useAuthStore()
+const dialog = useDialogStore()
 const shareOpen = ref(false)
 
 onMounted(() => {
@@ -21,12 +23,12 @@ function formatSize(bytes: number) {
 }
 
 async function newFile() {
-  const filename = prompt('输入文件名（如 notes.md）', 'untitled.md')
+  const filename = await dialog.prompt('输入文件名', 'untitled.md', '新建文件')
   if (!filename) return
   try {
     await files.create({ filename, content: '' })
   } catch (e: any) {
-    alert(e.response?.data?.error?.message || '创建失败')
+    await dialog.alert(e.response?.data?.error?.message || '创建失败', '错误')
   }
 }
 
@@ -36,22 +38,24 @@ async function loadFile(id: number) {
 
 async function removeFile(id: number, event: Event) {
   event.stopPropagation()
-  if (!confirm('确定删除？')) return
+  const ok = await dialog.confirm('确定删除？', '删除文件')
+  if (!ok) return
   try {
     await files.remove(id)
   } catch (e: any) {
-    alert(e.response?.data?.error?.message || '删除失败')
+    await dialog.alert(e.response?.data?.error?.message || '删除失败', '错误')
   }
 }
 
 async function onLogout() {
-  if (!confirm('确定注销？')) return
+  const ok = await dialog.confirm('确定注销？', '退出登录')
+  if (!ok) return
   await auth.logout()
 }
 
 function openShare() {
   if (!files.current) {
-    alert('请先选择或新建一个文件')
+    dialog.alert('请先选择或新建一个文件', '提示')
     return
   }
   shareOpen.value = true

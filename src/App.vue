@@ -67,6 +67,9 @@ watch(themeMode, (mode) => {
     </main>
   </div>
 
+  <!-- 自定义弹窗 -->
+  <CustomDialog />
+
   <!-- 登录/注册弹窗 -->
   <div v-if="showAuthModal" class="auth-modal-overlay" @click.self="onAuthClose">
     <div class="auth-modal-content">
@@ -80,9 +83,10 @@ watch(themeMode, (mode) => {
 
 <script lang="ts">
 import Sidebar from './components/Sidebar.vue'
+import CustomDialog from './components/CustomDialog.vue'
 
 export default {
-  components: { Sidebar }
+  components: { Sidebar, CustomDialog }
 }
 </script>
 
