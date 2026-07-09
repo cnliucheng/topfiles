@@ -454,4 +454,15 @@ function openShare() {
   flex: none;
   padding: 8px 20px;
 }
+
+/* Chrome autofill 覆盖 */
+.account-modal input:-webkit-autofill,
+.account-modal input:-webkit-autofill:hover,
+.account-modal input:-webkit-autofill:focus,
+.account-modal input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-panel) inset !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+  caret-color: var(--text-main);
+  transition: background-color 9999s ease-in-out 0s;
+}
 </style>
