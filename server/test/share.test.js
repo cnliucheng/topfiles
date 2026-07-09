@@ -12,13 +12,16 @@ beforeEach(() => {
 afterEach(() => cleanupTest())
 
 describe('GET /u/:filename', () => {
-  it('serves file content', async () => {
+  it('serves file as HTML page with dark mode support', async () => {
     ctx.db.prepare('INSERT INTO files (filename, content, mime_type, size_bytes) VALUES (?, ?, ?, ?)')
       .run('hello.md', '# Hello', 'text/markdown; charset=utf-8', 7)
     const res = await request(server, 'GET', '/u/hello.md')
     expect(res.status).toBe(200)
-    expect(res.body).toBe('# Hello')
-    expect(res.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.body).toContain('<!DOCTYPE html>')
+    expect(res.body).toContain('# Hello')
+    expect(res.body).toContain('prefers-color-scheme')
+    expect(res.body).toContain('hello.md')
   })
 
   it('returns 404 for missing file', async () => {
@@ -30,6 +33,7 @@ describe('GET /u/:filename', () => {
     ctx.db.prepare('INSERT INTO files (filename, content, size_bytes) VALUES (?, ?, ?)').run('a.md', 'x', 1)
     const res = await request(server, 'GET', '/u/a.md')
     expect(res.status).toBe(200)
+    expect(res.body).toContain('<!DOCTYPE html>')
   })
 
   it('sets cache header', async () => {
