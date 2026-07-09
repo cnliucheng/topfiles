@@ -72,4 +72,24 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 :global([data-theme="dark"]) input { background: #2a2a2a; border-color: #444; color: #e0e0e0; }
 :global([data-theme="dark"]) label > span { color: #888; }
 :global([data-theme="dark"]) .hint { color: #888; }
+
+/* 覆盖 Chrome autofill 样式 */
+:deep(input:-webkit-autofill),
+:deep(input:-webkit-autofill:hover),
+:deep(input:-webkit-autofill:focus),
+:deep(input:-webkit-autofill:active) {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-panel) inset !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+  caret-color: var(--text-main);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+:global([data-theme="dark"]) input:-webkit-autofill,
+:global([data-theme="dark"]) input:-webkit-autofill:hover,
+:global([data-theme="dark"]) input:-webkit-autofill:focus,
+:global([data-theme="dark"]) input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #2a2a2a inset !important;
+  -webkit-text-fill-color: #e0e0e0 !important;
+  caret-color: #e0e0e0;
+}
 </style>
