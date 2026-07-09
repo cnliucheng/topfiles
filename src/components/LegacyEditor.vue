@@ -188,14 +188,19 @@ function saveDraft(): void {
     })
   )
 
-  // 如果登录且有云端文件，异步保存到云端
-  if (authStore.isLoggedIn && filesStore.current) {
-    filesStore.update(filesStore.current.id, {
-      content: content.value,
-      mimeType: getMimeType(ext.value)
-    }).catch(() => {
-      // 静默失败，不阻塞本地保存
-    })
+  // 如果登录，异步保存到云端（自动匹配同名文件）
+  if (authStore.isLoggedIn) {
+    const fullFilename = `${fileName.value}.${ext.value}`
+    const existing = filesStore.list.find(
+      f => f.filename.toLowerCase() === fullFilename.toLowerCase()
+    )
+    const fileId = filesStore.current?.id ?? existing?.id
+    if (fileId) {
+      filesStore.update(fileId, {
+        content: content.value,
+        mimeType: getMimeType(ext.value)
+      }).catch(() => {})
+    }
   }
 }
 
@@ -311,9 +316,14 @@ async function onSaveToCloud(): Promise<void> {
   const fullFilename = `${fileName.value}.${ext.value}`
 
   try {
-    if (filesStore.current) {
+    // 检查是否已有同名文件
+    const existing = filesStore.list.find(
+      f => f.filename.toLowerCase() === fullFilename.toLowerCase()
+    )
+
+    if (existing) {
       // 更新现有文件
-      await filesStore.update(filesStore.current.id, {
+      await filesStore.update(existing.id, {
         content: content.value,
         mimeType: getMimeType(ext.value)
       })
