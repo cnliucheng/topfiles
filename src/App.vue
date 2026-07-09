@@ -76,12 +76,12 @@ onMounted(() => {
   background: rgba(255, 255, 255, 1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
-:root.dark .global-login-trigger {
+[data-theme="dark"] .global-login-trigger {
   background: rgba(30, 30, 30, 0.9);
   border-color: rgba(100, 100, 100, 0.3);
   color: #eee;
 }
-:root.dark .global-login-trigger:hover {
+[data-theme="dark"] .global-login-trigger:hover {
   background: rgba(40, 40, 40, 1);
 }
 
@@ -106,6 +106,10 @@ onMounted(() => {
   max-height: 90vh;
   overflow-y: auto;
 }
+[data-theme="dark"] .auth-modal-content {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
 .auth-modal-close {
   position: absolute;
   top: 12px;
@@ -123,8 +127,15 @@ onMounted(() => {
   color: #666;
   z-index: 10;
 }
+[data-theme="dark"] .auth-modal-close {
+  background: rgba(255, 255, 255, 0.1);
+  color: #aaa;
+}
 .auth-modal-close:hover {
   background: rgba(0, 0, 0, 0.1);
+}
+[data-theme="dark"] .auth-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 .auth-loading {
   padding: 2rem;
@@ -141,10 +152,45 @@ onMounted(() => {
   border: none;
   box-shadow: none;
   padding: 2rem;
+  background: transparent;
+}
+[data-theme="dark"] .auth-modal-content .card {
+  background: transparent;
+  color: #e0e0e0;
 }
 
 .app-wrapper {
   position: relative;
   min-height: 100vh;
+}
+
+/* 暗黑模式：SetupView/LoginView 内部元素 */
+[data-theme="dark"] .auth-modal-content :deep(input) {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e0e0e0;
+}
+[data-theme="dark"] .auth-modal-content :deep(button[type="submit"]) {
+  background: #3b82f6;
+  color: white;
+}
+[data-theme="dark"] .auth-modal-content :deep(h1) {
+  color: #e0e0e0;
+}
+[data-theme="dark"] .auth-modal-content :deep(.hint) {
+  color: #888;
+}
+[data-theme="dark"] .auth-modal-content :deep(.err) {
+  color: #f87171;
+}
+[data-theme="dark"] .auth-modal-content :deep(label > span) {
+  color: #ccc;
+}
+[data-theme="dark"] .auth-modal-content :deep(.err-banner) {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+[data-theme="dark"] .auth-modal-content :deep(.auth-loading) {
+  color: #888;
 }
 </style>
