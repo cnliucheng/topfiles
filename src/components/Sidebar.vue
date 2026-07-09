@@ -369,15 +369,18 @@ function openShare() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 6px;
+  white-space: nowrap;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-panel);
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logout-btn:hover {
