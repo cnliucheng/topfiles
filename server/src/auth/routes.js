@@ -56,6 +56,38 @@ export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, r
     res.writeHead(204); res.end()
   }
 
+  routes['PUT /api/auth/account'] = async (req, res) => {
+    const body = await readJsonBody(req)
+    const { currentPassword, newUsername, newPassword } = body
+    if (!currentPassword) throw new AppError(400, 'INVALID_REQUEST', '当前密码必填')
+
+    const user = db.prepare('SELECT * FROM users WHERE id = 1').get()
+    if (!user) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
+    const ok = await verifyPassword(currentPassword, user.password_hash)
+    if (!ok) throw new AppError(401, 'INVALID_CREDENTIALS', '当前密码错误')
+
+    let username = user.username
+
+    // 修改密码
+    if (newPassword) {
+      if (newPassword.length < 8) throw new AppError(400, 'WEAK_PASSWORD', '密码至少 8 位')
+      const hash = await hashPassword(newPassword)
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = 1').run(hash)
+    }
+
+    // 修改用户名
+    if (newUsername) {
+      if (!/^[a-z0-9_-]{3,32}$/i.test(newUsername)) throw new AppError(400, 'INVALID_USERNAME', '用户名 3-32 位，字母数字 _ -')
+      db.prepare('UPDATE users SET username = ? WHERE id = 1').run(newUsername)
+      username = newUsername
+    }
+
+    // 重签 JWT（用户名可能变了）
+    const jwt = await signSession({ username }, secret)
+    res.setHeader('Set-Cookie', buildSessionCookie(jwt, { secure: cookieSecure, maxAge: COOKIE_MAX_AGE }))
+    sendJson(res, 200, { username })
+  }
+
   routes['GET /api/auth/me'] = (req, res) => {
     const cookies = parseCookies(req.headers.cookie)
     if (!cookies.tf_session) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
