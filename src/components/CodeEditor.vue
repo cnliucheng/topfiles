@@ -242,34 +242,64 @@ onBeforeUnmount(() => {
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
     >
       <button @click="menuUndo">
-        ↩️ 撤销
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <polyline points="1,4 1,10 7,10" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>撤销</span>
         <span class="shortcut">⌘Z</span>
       </button>
       <button @click="menuRedo">
-        ↪️ 重做
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <polyline points="23,4 23,10 17,10" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>重做</span>
         <span class="shortcut">⌘⇧Z</span>
       </button>
       <div class="cm-menu-sep"></div>
       <button @click="menuCut">
-        ✂️ 剪切
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="6" cy="18" r="3"/>
+          <line x1="8.6" y1="8.6" x2="15.4" y2="15.4" stroke-linecap="round"/>
+          <line x1="15.4" y1="8.6" x2="8.6" y2="15.4" stroke-linecap="round"/>
+        </svg>
+        <span>剪切</span>
         <span class="shortcut">⌘X</span>
       </button>
       <button @click="menuCopy">
-        📋 复制
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        <span>复制</span>
         <span class="shortcut">⌘C</span>
       </button>
       <button @click="menuPaste">
-        📄 粘贴
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+        </svg>
+        <span>粘贴</span>
         <span class="shortcut">⌘V</span>
       </button>
       <div class="cm-menu-sep"></div>
       <button @click="menuSelectAll">
-        🔲 全选
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+        </svg>
+        <span>全选</span>
         <span class="shortcut">⌘A</span>
       </button>
       <div v-if="contextMenu.hasSelection" class="cm-menu-sep"></div>
       <button v-if="contextMenu.hasSelection" @click="selectAllOccurrences">
-        🔎 批量选中相同词
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round"/>
+        </svg>
+        <span>批量选中相同词</span>
         <span class="shortcut">⌘⇧L</span>
       </button>
     </div>

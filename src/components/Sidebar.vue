@@ -102,7 +102,10 @@ function openShare() {
   <div class="sidebar-inner">
     <!-- 用户信息 -->
     <div class="sidebar-header">
-      <span class="user-avatar">👤</span>
+      <svg class="user-avatar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke-linecap="round" />
+      </svg>
       <span class="user-name">{{ auth.user?.username }}</span>
     </div>
 
@@ -130,7 +133,9 @@ function openShare() {
       <ul class="file-list">
         <li v-if="files.loading" class="empty-state">加载中...</li>
         <li v-else-if="files.list.length === 0" class="empty-state">
-          <span class="empty-icon">📁</span>
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>还没有文件</span>
         </li>
         <li
@@ -140,7 +145,10 @@ function openShare() {
           :class="{ active: files.current?.id === f.id }"
           @click="loadFile(f.id)"
         >
-          <span class="file-icon">📄</span>
+          <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="13,2 13,9 20,9" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span class="file-name">{{ f.filename }}</span>
           <span class="file-size">{{ formatSize(f.sizeBytes) }}</span>
           <button class="file-delete" @click="removeFile(f.id, $event)" title="删除">×</button>
@@ -219,7 +227,8 @@ function openShare() {
 }
 
 .user-avatar {
-  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .user-name {
@@ -299,8 +308,8 @@ function openShare() {
 }
 
 .file-icon {
-  font-size: 14px;
   flex-shrink: 0;
+  opacity: 0.6;
 }
 
 .file-name {
@@ -353,8 +362,8 @@ function openShare() {
 }
 
 .empty-icon {
-  font-size: 32px;
-  opacity: 0.5;
+  opacity: 0.4;
+  flex-shrink: 0;
 }
 
 .sidebar-footer {
