@@ -703,3 +703,57 @@ body,
   background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
+
+/* ========== 暗黑模式：强制修复 ========== */
+
+/* 输入框、选择框、按钮 */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] button {
+  background-color: var(--bg-panel) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border) !important;
+}
+
+/* 输入框 placeholder */
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-sub) !important;
+}
+
+/* 聚焦状态 */
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: var(--primary) !important;
+  outline: none !important;
+}
+
+/* 下拉箭头背景 */
+[data-theme="dark"] .select-trigger {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-main) 50%),
+    linear-gradient(135deg, var(--text-main) 50%, transparent 50%) !important;
+}
+
+/* 导入弹窗背景 */
+[data-theme="dark"] .import-modal {
+  background: var(--bg-card) !important;
+}
+
+/* 模态框按钮 */
+[data-theme="dark"] .modal-btn.secondary {
+  background: var(--bg-panel) !important;
+  color: var(--text-main) !important;
+}
+
+/* 滚动条 */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb) !important;
+}
+
+/* 导入弹窗的 checkbox */
+[data-theme="dark"] .import-switch input[type="checkbox"] {
+  accent-color: var(--primary) !important;
+}

@@ -6,6 +6,7 @@ import ShareDialog from './ShareDialog.vue'
 
 const files = useFilesStore()
 const auth = useAuthStore()
+const shareOpen = ref(false)
 
 onMounted(() => {
   if (auth.isLoggedIn) {
@@ -48,9 +49,6 @@ async function onLogout() {
   await auth.logout()
 }
 
-// 分享功能
-const shareOpen = ref(false)
-
 function openShare() {
   if (!files.current) {
     alert('请先选择或新建一个文件')
@@ -62,32 +60,64 @@ function openShare() {
 
 <template>
   <div class="sidebar-inner">
-    <div class="header">
-      <span class="user">👤 {{ auth.user?.username }}</span>
+    <!-- 用户信息 -->
+    <div class="sidebar-header">
+      <span class="user-avatar">👤</span>
+      <span class="user-name">{{ auth.user?.username }}</span>
     </div>
 
-    <div class="actions">
-      <button @click="newFile" class="new-btn">+ 新建</button>
-      <button @click="openShare" class="share-btn" :disabled="!files.current">🔗 分享</button>
+    <!-- 操作按钮 -->
+    <div class="sidebar-actions">
+      <button @click="newFile" class="sidebar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <path d="M12 5V19" stroke-linecap="round"/>
+          <path d="M5 12H19" stroke-linecap="round"/>
+        </svg>
+        <span>新建</span>
+      </button>
+      <button @click="openShare" class="sidebar-btn" :disabled="!files.current">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <path d="M4 12V20C4 20.5523 4.44772 21 5 21H19C19.5523 21 20 20.5523 20 20V12" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16 6L12 2L8 6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 2V15" stroke-linecap="round"/>
+        </svg>
+        <span>分享</span>
+      </button>
     </div>
 
-    <ul class="file-list">
-      <li v-if="files.loading" class="empty">加载中...</li>
-      <li v-else-if="files.list.length === 0" class="empty">还没有文件</li>
-      <li
-        v-for="f in files.list"
-        :key="f.id"
-        :class="{ active: files.current?.id === f.id }"
-        @click="loadFile(f.id)"
-      >
-        <span class="name">📄 {{ f.filename }}</span>
-        <span class="meta">{{ formatSize(f.sizeBytes) }}</span>
-        <button class="del" @click="removeFile(f.id, $event)" title="删除">×</button>
-      </li>
-    </ul>
+    <!-- 文件列表 -->
+    <div class="sidebar-content">
+      <ul class="file-list">
+        <li v-if="files.loading" class="empty-state">加载中...</li>
+        <li v-else-if="files.list.length === 0" class="empty-state">
+          <span class="empty-icon">📁</span>
+          <span>还没有文件</span>
+        </li>
+        <li
+          v-for="f in files.list"
+          :key="f.id"
+          class="file-item"
+          :class="{ active: files.current?.id === f.id }"
+          @click="loadFile(f.id)"
+        >
+          <span class="file-icon">📄</span>
+          <span class="file-name">{{ f.filename }}</span>
+          <span class="file-size">{{ formatSize(f.sizeBytes) }}</span>
+          <button class="file-delete" @click="removeFile(f.id, $event)" title="删除">×</button>
+        </li>
+      </ul>
+    </div>
 
-    <div class="footer">
-      <button @click="onLogout" class="logout">🚪 退出登录</button>
+    <!-- 底部退出按钮 -->
+    <div class="sidebar-footer">
+      <button @click="onLogout" class="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <path d="M9 21H5C4.44772 21 4 20.5523 4 20V4C4 3.44772 4.44772 3 5 3H9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16 17L21 12L16 7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12H9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>退出登录</span>
+      </button>
     </div>
   </div>
 
@@ -100,95 +130,183 @@ function openShare() {
   flex-direction: column;
   height: 100%;
   width: 100%;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
 }
-.header {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border, #eee);
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
   font-weight: 600;
-  white-space: nowrap;
+  font-size: 14px;
+}
+
+.user-avatar {
+  font-size: 18px;
+}
+
+.user-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.actions {
+
+.sidebar-actions {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--border, #f0f0f0);
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
 }
-.new-btn, .share-btn {
+
+.sidebar-btn {
   flex: 1;
-  padding: 0.5rem;
-  border: 1px dashed #ccc;
-  background: transparent;
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 13px;
   cursor: pointer;
-  font-size: 0.9rem;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.share-btn {
-  border-style: solid;
+
+.sidebar-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
 }
-.share-btn:disabled {
-  opacity: 0.5;
+
+.sidebar-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
+
+.sidebar-btn:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg-panel);
+  color: var(--text-main);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .file-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  flex: 1;
-  overflow-y: auto;
 }
-.file-list li {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
+
+.file-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
 }
-.file-list li:hover {
-  background: var(--hover, #f5f5f5);
+
+.file-item:hover {
+  background: var(--primary-soft);
 }
-.file-list li.active {
-  background: var(--active, #e0e7ff);
+
+.file-item.active {
+  background: var(--primary-soft);
+  border-left: 3px solid var(--primary);
 }
-.file-list .name {
+
+.file-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.file-name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
 }
-.file-list .meta {
-  font-size: 0.75rem;
-  color: #888;
+
+.file-size {
+  font-size: 11px;
+  color: var(--text-sub);
+  flex-shrink: 0;
 }
-.file-list .del {
-  background: transparent;
+
+.file-delete {
+  width: 20px;
+  height: 20px;
   border: none;
-  color: #999;
-  cursor: pointer;
-  padding: 0 0.25rem;
-  font-size: 14px;
-}
-.file-list .del:hover {
-  color: #c33;
-}
-.empty {
-  color: #999;
-  padding: 1rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-.footer {
-  padding: 0.75rem;
-  border-top: 1px solid var(--border, #eee);
-}
-.logout {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
   background: transparent;
-  border-radius: 6px;
+  color: var(--text-sub);
+  font-size: 14px;
   cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.file-item:hover .file-delete {
+  opacity: 1;
+}
+
+.file-delete:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.sidebar-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text-sub);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.logout-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 </style>
