@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useAuthStore } from './stores/auth'
 import LegacyEditor from './components/LegacyEditor.vue'
 import LoginView from './views/LoginView.vue'
@@ -7,6 +7,7 @@ import SetupView from './views/SetupView.vue'
 
 const auth = useAuthStore()
 const showAuthModal = ref(false)
+const themeMode = ref<'light' | 'dark'>('light')
 
 function onLoginClick() {
   showAuthModal.value = true
@@ -16,9 +17,27 @@ function onAuthClose() {
   showAuthModal.value = false
 }
 
+function detectTheme(): 'light' | 'dark' {
+  const saved = localStorage.getItem('themeMode')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyTheme(mode: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', mode)
+}
+
 onMounted(() => {
   auth.init()
+  themeMode.value = detectTheme()
+  applyTheme(themeMode.value)
 })
+
+watch(themeMode, (mode) => {
+  applyTheme(mode)
+  localStorage.setItem('themeMode', mode)
+})
+
 </script>
 
 <template>
