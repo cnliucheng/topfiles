@@ -104,6 +104,16 @@ function onCancel() {
   border-color: var(--primary);
   outline: none;
 }
+/* Chrome autofill */
+.dialog-input:-webkit-autofill,
+.dialog-input:-webkit-autofill:hover,
+.dialog-input:-webkit-autofill:focus,
+.dialog-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-panel) inset !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+  caret-color: var(--text-main);
+  transition: background-color 9999s ease-in-out 0s;
+}
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
