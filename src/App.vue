@@ -203,33 +203,37 @@ export default {
   color: #e0e0e0;
 }
 
-/* 暗黑模式：输入框等 */
-[data-theme="dark"] .auth-modal-content :deep(input) {
-  background: #2a2a2a;
-  border-color: #444;
-  color: #e0e0e0;
+/* 暗黑模式：输入框等 - 使用 !important 覆盖 scoped 样式 */
+[data-theme="dark"] .auth-modal-content input {
+  background: #2a2a2a !important;
+  border-color: #444 !important;
+  color: #e0e0e0 !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(button[type="submit"]) {
-  background: #3b82f6;
-  color: white;
+[data-theme="dark"] .auth-modal-content button[type="submit"] {
+  background: #3b82f6 !important;
+  color: white !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(h1) {
-  color: #e0e0e0;
+[data-theme="dark"] .auth-modal-content h1 {
+  color: #e0e0e0 !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(.hint) {
-  color: #888;
+[data-theme="dark"] .auth-modal-content .hint {
+  color: #888 !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(.err) {
-  color: #f87171;
+[data-theme="dark"] .auth-modal-content .err {
+  color: #f87171 !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(label > span) {
-  color: #ccc;
+[data-theme="dark"] .auth-modal-content label > span {
+  color: #ccc !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(.err-banner) {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+[data-theme="dark"] .auth-modal-content .err-banner {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
 }
-[data-theme="dark"] .auth-modal-content :deep(.auth-loading) {
-  color: #888;
+[data-theme="dark"] .auth-modal-content .auth-loading {
+  color: #888 !important;
+}
+[data-theme="dark"] .auth-modal-content .card {
+  background: transparent !important;
+  color: #e0e0e0 !important;
 }
 </style>
