@@ -27,17 +27,60 @@ const contextMenu = ref({ visible: false, x: 0, y: 0, hasSelection: false })
 function onContextMenu(e: MouseEvent) {
   if (!editorView) return
   const sel = editorView.state.selection.main
-  const hasSelection = !sel.empty
-  if (!hasSelection) {
-    contextMenu.value.visible = false
-    return
-  }
+  const hasText = !sel.empty
   e.preventDefault()
-  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, hasSelection: true }
+  e.stopPropagation()
+  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, hasSelection: hasText }
 }
 
 function hideContextMenu() {
   contextMenu.value.visible = false
+}
+
+function menuUndo() {
+  if (!editorView) return
+  // CodeMirror 的 undo 通过键盘事件触发，这里手动构造
+  const cmView = editorView as any
+  const undo = cmView._undo
+  if (undo && undo.length > 0) {
+    editorView.dispatch({ annotations: undefined as any })
+    // 使用原生 inputType 来触发 undo
+    const event = new InputEvent('input', { inputType: 'historyUndo', bubbles: true, composed: true })
+    editorView.dom.dispatchEvent(event)
+  }
+  hideContextMenu()
+}
+
+function menuRedo() {
+  if (!editorView) return
+  const event = new InputEvent('input', { inputType: 'historyRedo', bubbles: true, composed: true })
+  editorView.dom.dispatchEvent(event)
+  hideContextMenu()
+}
+
+function menuCut() {
+  document.execCommand('cut')
+  hideContextMenu()
+}
+
+function menuCopy() {
+  document.execCommand('copy')
+  hideContextMenu()
+}
+
+function menuPaste() {
+  document.execCommand('paste')
+  hideContextMenu()
+}
+
+function menuSelectAll() {
+  if (!editorView) return
+  const doc = editorView.state.doc
+  editorView.dispatch({
+    selection: EditorSelection.create([EditorSelection.range(0, doc.length)]),
+    scrollIntoView: true
+  })
+  hideContextMenu()
 }
 
 function selectAllOccurrences() {
@@ -198,8 +241,36 @@ onBeforeUnmount(() => {
       class="cm-context-menu"
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
     >
-      <button @click="selectAllOccurrences">
+      <button @click="menuUndo">
+        ↩️ 撤销
+        <span class="shortcut">⌘Z</span>
+      </button>
+      <button @click="menuRedo">
+        ↪️ 重做
+        <span class="shortcut">⌘⇧Z</span>
+      </button>
+      <div class="cm-menu-sep"></div>
+      <button @click="menuCut">
+        ✂️ 剪切
+        <span class="shortcut">⌘X</span>
+      </button>
+      <button @click="menuCopy">
+        📋 复制
+        <span class="shortcut">⌘C</span>
+      </button>
+      <button @click="menuPaste">
+        📄 粘贴
+        <span class="shortcut">⌘V</span>
+      </button>
+      <div class="cm-menu-sep"></div>
+      <button @click="menuSelectAll">
+        🔲 全选
+        <span class="shortcut">⌘A</span>
+      </button>
+      <div v-if="contextMenu.hasSelection" class="cm-menu-sep"></div>
+      <button v-if="contextMenu.hasSelection" @click="selectAllOccurrences">
         🔎 批量选中相同词
+        <span class="shortcut">⌘⇧L</span>
       </button>
     </div>
   </div>
@@ -218,10 +289,10 @@ onBeforeUnmount(() => {
   z-index: 5000;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 4px;
-  min-width: 200px;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  padding: 6px;
+  min-width: 240px;
 }
 .cm-context-menu button {
   width: 100%;
@@ -240,5 +311,19 @@ onBeforeUnmount(() => {
 .cm-context-menu button:hover {
   background: var(--primary-soft);
   color: var(--primary-text);
+}
+.cm-context-menu .shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-sub);
+  font-family: monospace;
+}
+.cm-context-menu button:hover .shortcut {
+  color: var(--primary-text);
+}
+.cm-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 8px;
 }
 </style>
