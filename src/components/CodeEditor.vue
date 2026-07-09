@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -20,6 +20,52 @@ const editorRoot = ref<HTMLDivElement | null>(null)
 let editorView: EditorView | null = null
 const languageCompartment = new Compartment()
 let languageRequestId = 0
+
+// 右键菜单
+const contextMenu = ref({ visible: false, x: 0, y: 0, hasSelection: false })
+
+function onContextMenu(e: MouseEvent) {
+  if (!editorView) return
+  const sel = editorView.state.selection.main
+  const hasSelection = !sel.empty
+  if (!hasSelection) {
+    contextMenu.value.visible = false
+    return
+  }
+  e.preventDefault()
+  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, hasSelection: true }
+}
+
+function hideContextMenu() {
+  contextMenu.value.visible = false
+}
+
+function selectAllOccurrences() {
+  if (!editorView) return
+  const state = editorView.state
+  const sel = state.selection.main
+  const text = state.sliceDoc(sel.from, sel.to)
+  if (!text) return
+
+  const ranges: { anchor: number; head: number }[] = []
+  const doc = state.doc.toString()
+  const lower = doc.toLowerCase()
+  const lowerText = text.toLowerCase()
+  let idx = 0
+  while ((idx = lower.indexOf(lowerText, idx)) !== -1) {
+    ranges.push({ anchor: idx, head: idx + text.length })
+    idx += text.length
+  }
+
+  if (ranges.length > 1) {
+    const selRanges = ranges.map(r => EditorSelection.range(r.anchor, r.head))
+    editorView.dispatch({
+      selection: EditorSelection.create(selRanges),
+      scrollIntoView: true
+    })
+  }
+  hideContextMenu()
+}
 
 /* ---- 语言加载器查表 ---- */
 const LANGUAGE_LOADERS: Record<string, () => Promise<Extension>> = {
@@ -108,6 +154,10 @@ onMounted(() => {
     parent: editorRoot.value
   })
 
+  // 绑定右键菜单
+  editorView.dom.addEventListener('contextmenu', onContextMenu)
+  document.addEventListener('click', hideContextMenu)
+
   void applyLanguage(props.ext)
 })
 
@@ -132,17 +182,63 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', hideContextMenu)
+  editorView?.dom.removeEventListener('contextmenu', onContextMenu)
   editorView?.destroy()
   editorView = null
 })
 </script>
 
 <template>
-  <div ref="editorRoot" class="editor-root" :style="{ '--editor-font-size': `${props.fontSize}px` }"></div>
+  <div class="editor-wrapper">
+    <div ref="editorRoot" class="editor-root" :style="{ '--editor-font-size': `${props.fontSize}px` }"></div>
+    <!-- 右键菜单 -->
+    <div
+      v-if="contextMenu.visible"
+      class="cm-context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+    >
+      <button @click="selectAllOccurrences">
+        🔎 批量选中相同词
+      </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.editor-wrapper {
+  position: relative;
+  height: 100%;
+}
 .editor-root {
   height: 100%;
+}
+.cm-context-menu {
+  position: fixed;
+  z-index: 5000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  min-width: 200px;
+}
+.cm-context-menu button {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-context-menu button:hover {
+  background: var(--primary-soft);
+  color: var(--primary-text);
 }
 </style>
