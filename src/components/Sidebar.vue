@@ -150,7 +150,7 @@ function openShare() {
 
     <!-- 底部退出按钮 -->
     <div class="sidebar-footer">
-      <button @click="openAccount" class="logout-btn" style="margin-bottom: 8px;">
+      <button @click="openAccount" class="logout-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15C18.3 16.8 16.3 18 14 18C10.7 18 8 15.3 8 12C8 8.7 10.7 6 14 6C16.3 6 18.3 7.2 19.4 9" stroke-linecap="round" stroke-linejoin="round"/>
@@ -358,12 +358,14 @@ function openShare() {
 }
 
 .sidebar-footer {
+  display: flex;
+  gap: 8px;
   padding: 12px 14px;
   border-top: 1px solid var(--border);
 }
 
 .logout-btn {
-  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
