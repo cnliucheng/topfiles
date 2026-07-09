@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from 'vue-i18n'
 
+const emit = defineEmits<{ (e: 'success'): void }>()
 const auth = useAuthStore()
 const { t } = useI18n()
 
@@ -19,6 +20,7 @@ async function onSubmit() {
   error.value = null
   try {
     await auth.login(username.value, password.value)
+    emit('success')
   } catch (e: any) {
     error.value = e.response?.data?.error?.message || t('auth.loginFailed', '登录失败')
   } finally {
