@@ -2,16 +2,23 @@ import { sendJson, sendError } from '../utils/json.js'
 import { AppError } from '../errors.js'
 import { hashPassword, verifyPassword } from './password.js'
 import { signSession } from './jwt.js'
-import { buildSessionCookie, clearSessionCookie, parseCookies } from './cookies.js'
+import { authenticate } from './session.js'
+import { buildSessionCookie, clearSessionCookie } from './cookies.js'
 import { readJsonBody } from '../utils/jsonBody.js'
 
 const COOKIE_MAX_AGE = 7 * 24 * 3600
 
-function getClientIp(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress
-}
+export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, rateLimit, trustProxy = false }) {
+  // 仅在反向代理后（trustProxy=true）才信任 x-forwarded-for，否则用真实连接地址，
+  // 避免客户端伪造该头把请求分散到不同 bucket 以绕过登录/注册/改账号的限流。
+  function getClientIp(req) {
+    if (trustProxy) {
+      const xff = req.headers['x-forwarded-for']
+      if (xff) return xff.split(',')[0].trim()
+    }
+    return req.socket.remoteAddress
+  }
 
-export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, rateLimit }) {
   routes['GET /api/setup/status'] = (req, res) => {
     const n = db.prepare('SELECT COUNT(*) as n FROM users').get().n
     sendJson(res, 200, { hasAccount: n > 0 })
@@ -60,6 +67,9 @@ export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, r
     const body = await readJsonBody(req)
     const { currentPassword, newUsername, newPassword } = body
     if (!currentPassword) throw new AppError(400, 'INVALID_REQUEST', '当前密码必填')
+    if (rateLimit && !rateLimit.allow(`account:${getClientIp(req)}`, 5, 60000)) {
+      throw new AppError(429, 'RATE_LIMITED', '请求过于频繁')
+    }
 
     const user = db.prepare('SELECT * FROM users WHERE id = 1').get()
     if (!user) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
@@ -88,9 +98,8 @@ export function registerAuthRoutes(routes, { db, secret, cookieSecure = false, r
     sendJson(res, 200, { username })
   }
 
-  routes['GET /api/auth/me'] = (req, res) => {
-    const cookies = parseCookies(req.headers.cookie)
-    if (!cookies.tf_session) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
+  routes['GET /api/auth/me'] = async (req, res) => {
+    await authenticate(req, secret)
     const user = db.prepare('SELECT username FROM users LIMIT 1').get()
     if (!user) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
     sendJson(res, 200, { username: user.username })

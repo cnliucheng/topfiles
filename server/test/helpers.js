@@ -9,8 +9,15 @@ import { sendError, sendJson } from '../src/utils/json.js'
 const TEST_DB = './test-data.sqlite'
 const TEST_SECRET = new TextEncoder().encode('test-secret-32-bytes-long-12345')
 
+// SQLite 的 WAL 模式会额外产生 -shm / -wal 辅助文件，测试结束时一并清理，避免残留入库。
+function removeDb() {
+  for (const p of [TEST_DB, `${TEST_DB}-shm`, `${TEST_DB}-wal`]) {
+    if (existsSync(p)) unlinkSync(p)
+  }
+}
+
 export function setupTest() {
-  if (existsSync(TEST_DB)) unlinkSync(TEST_DB)
+  removeDb()
   const db = createDb(TEST_DB)
   const routes = {}
   return { db, routes, secret: TEST_SECRET }
@@ -59,5 +66,5 @@ export function request(server, method, path, body, headers = {}) {
 }
 
 export function cleanupTest() {
-  if (existsSync(TEST_DB)) unlinkSync(TEST_DB)
+  removeDb()
 }

@@ -1,19 +1,14 @@
 import { sendJson } from '../utils/json.js'
 import { AppError } from '../errors.js'
-import { parseCookies } from '../auth/cookies.js'
+import { authenticate } from '../auth/session.js'
 import { readJsonBody } from '../utils/jsonBody.js'
 import { sniffMime } from '../utils/mime.js'
 
 const MAX_CONTENT = 1024 * 1024
 
-function requireAuth(req) {
-  const cookies = parseCookies(req.headers.cookie)
-  if (!cookies.tf_session) throw new AppError(401, 'UNAUTHENTICATED', '请先登录')
-}
-
-export function registerFileRoutes(routes, { db }) {
-  routes['GET /api/files'] = (req, res) => {
-    requireAuth(req)
+export function registerFileRoutes(routes, { db, secret }) {
+  routes['GET /api/files'] = async (req, res) => {
+    await authenticate(req, secret)
     const rows = db.prepare(`
       SELECT id, filename, mime_type as mimeType, size_bytes as sizeBytes,
              created_at as createdAt, updated_at as updatedAt
@@ -23,7 +18,7 @@ export function registerFileRoutes(routes, { db }) {
   }
 
   routes['POST /api/files'] = async (req, res) => {
-    requireAuth(req)
+    await authenticate(req, secret)
     const body = await readJsonBody(req)
     const { filename, content, mimeType } = body
     if (!filename) throw new AppError(400, 'INVALID_REQUEST', '文件名必填')
@@ -48,8 +43,8 @@ export function registerFileRoutes(routes, { db }) {
     }
   }
 
-  routes['GET /api/files/:id'] = (req, res) => {
-    requireAuth(req)
+  routes['GET /api/files/:id'] = async (req, res) => {
+    await authenticate(req, secret)
     const id = +req.params.id
     const row = db.prepare(`
       SELECT id, filename, content, mime_type as mimeType, size_bytes as sizeBytes,
@@ -61,7 +56,7 @@ export function registerFileRoutes(routes, { db }) {
   }
 
   routes['PUT /api/files/:id'] = async (req, res) => {
-    requireAuth(req)
+    await authenticate(req, secret)
     const id = +req.params.id
     const body = await readJsonBody(req)
     const { content, mimeType } = body
@@ -77,14 +72,14 @@ export function registerFileRoutes(routes, { db }) {
     `).run(content, mimeType || existing.mime_type, Buffer.byteLength(content, 'utf8'), id)
     const row = db.prepare(`
       SELECT id, filename, mime_type as mimeType, size_bytes as sizeBytes,
-             created_at as createdAt, updated_at as updatedAt
+               created_at as createdAt, updated_at as updatedAt
       FROM files WHERE id = ?
     `).get(id)
     sendJson(res, 200, row)
   }
 
-  routes['DELETE /api/files/:id'] = (req, res) => {
-    requireAuth(req)
+  routes['DELETE /api/files/:id'] = async (req, res) => {
+    await authenticate(req, secret)
     db.prepare('DELETE FROM files WHERE id = ?').run(+req.params.id)
     res.writeHead(204); res.end()
   }

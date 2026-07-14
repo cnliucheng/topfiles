@@ -10,7 +10,7 @@ beforeAll(() => {
   ctx = setupTest()
   const routes = {}
   registerAuthRoutes(routes, { db: ctx.db, secret: ctx.secret })
-  registerFileRoutes(routes, { db: ctx.db })
+  registerFileRoutes(routes, { db: ctx.db, secret: ctx.secret })
   registerShareRoutes(routes, { db: ctx.db })
   server = buildTestServer({ routes })
 })

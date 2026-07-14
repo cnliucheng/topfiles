@@ -8,8 +8,8 @@ let ctx, server, authHeader
 beforeEach(async () => {
   ctx = setupTest()
   const routes = {}
-  registerAuthRoutes(routes, { db: ctx.db, secret: ctx.secret })
-  registerFileRoutes(routes, { db: ctx.db })
+  registerAuthRoutes(routes, { db: ctx.db, secret: ctx.secret, rateLimit: null })
+  registerFileRoutes(routes, { db: ctx.db, secret: ctx.secret })
   server = buildTestServer({ routes })
   const token = await signSession({ username: 'alice' }, ctx.secret)
   authHeader = { cookie: `tf_session=${token}` }
@@ -38,6 +38,18 @@ describe('GET /api/files', () => {
 
   it('returns 401 without auth', async () => {
     const res = await request(server, 'GET', '/api/files')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 401 with a forged (non-JWT) cookie', async () => {
+    const res = await request(server, 'GET', '/api/files', undefined, { cookie: 'tf_session=forged' })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 401 with a token signed by the wrong secret', async () => {
+    const wrong = new TextEncoder().encode('wrong-wrong-wrong-wrong-wrong-32b')
+    const token = await signSession({ username: 'alice' }, wrong)
+    const res = await request(server, 'GET', '/api/files', undefined, { cookie: `tf_session=${token}` })
     expect(res.status).toBe(401)
   })
 })
