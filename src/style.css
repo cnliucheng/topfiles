@@ -73,23 +73,23 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(0,122,255,.3
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(2px, 0.5vw, 6px);
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
 }
 
 .app {
-  width: min(90vw, 1200px);
-  height: min(97dvh, 980px);
-  min-height: 480px;
-  min-width: 320px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px;
-  gap: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .top-bar {
@@ -97,6 +97,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(0,122,255,.3
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 66px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
@@ -236,11 +239,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(0,122,255,.3
 
 .icon-btn {
   position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 0;
+  background: transparent;
   color: var(--text-main);
   cursor: pointer;
   font-size: 17px;
@@ -492,9 +495,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(0,122,255,.3
 .editor-wrap {
   flex: 1;
   min-height: 0;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
+  border-radius: 0;
+  border: 0;
+  background: transparent;
   overflow: hidden;
   position: relative;
 }
@@ -661,9 +664,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(0,122,255,.3
 
 @media (max-width: 880px) {
   .app {
-    width: 98vw;
-    height: 98dvh;
-    min-height: 0;
+    width: 100%;
+    height: 100%;
   }
 
   .top-bar {
