@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from './stores/auth'
+import { useFilesStore } from './stores/files'
 import LoginView from './views/LoginView.vue'
 import SetupView from './views/SetupView.vue'
 
 const LegacyEditor = defineAsyncComponent(() => import('./components/LegacyEditor.vue'))
 
 const auth = useAuthStore()
+const files = useFilesStore()
 const showAuthModal = ref(false)
 const themeMode = ref<'light' | 'dark'>('light')
+const sidebarOpen = ref(false)
 
 function onLoginClick() {
   showAuthModal.value = true
@@ -39,6 +42,13 @@ watch(themeMode, (mode) => {
   localStorage.setItem('themeMode', mode)
 })
 
+watch(() => auth.isLoggedIn, (loggedIn) => {
+  if (!loggedIn) {
+    files.clearAll()
+    sidebarOpen.value = false
+  }
+})
+
 </script>
 
 <template>
@@ -57,9 +67,12 @@ watch(themeMode, (mode) => {
 
   <!-- 主界面：始终显示编辑器，登录后左侧加文件列表 -->
   <div class="app-layout">
+    <button v-if="auth.isLoggedIn" class="mobile-files-toggle" aria-label="打开文件列表" @click="sidebarOpen = true">
+      文件
+    </button>
     <!-- 左侧文件列表（只在登录后显示） -->
-    <aside v-if="auth.isLoggedIn" class="sidebar">
-      <Sidebar />
+    <aside v-if="auth.isLoggedIn" class="sidebar" :class="{ open: sidebarOpen }">
+      <Sidebar @close-mobile="sidebarOpen = false" />
     </aside>
 
     <!-- 右侧编辑器区域（始终显示） -->
@@ -107,6 +120,12 @@ export default {
   background: var(--bg, #fafafa);
   overflow-y: auto;
   flex-shrink: 0;
+}
+.mobile-files-toggle { display: none; }
+@media (max-width: 767px) {
+  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 2500; width: min(88vw, 320px); min-width: 0; transform: translateX(-105%); transition: transform .2s ease-out; box-shadow: 12px 0 32px rgba(0,0,0,.18); }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-files-toggle { display: block; position: fixed; z-index: 1200; left: 12px; top: 12px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); color: var(--text-main); font-weight: 600; }
 }
 [data-theme="dark"] .sidebar {
   background: #1a1a1a;

@@ -10,6 +10,7 @@ const files = useFilesStore()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const shareOpen = ref(false)
+const emit = defineEmits<{ (e: 'close-mobile'): void }>()
 
 // 修改密码
 const accountOpen = ref(false)
@@ -70,6 +71,7 @@ async function newFile() {
 
 async function loadFile(id: number) {
   await files.loadFile(id)
+  emit('close-mobile')
 }
 
 async function removeFile(id: number, event: Event) {
@@ -86,7 +88,12 @@ async function removeFile(id: number, event: Event) {
 async function onLogout() {
   const ok = await dialog.confirm('确定注销？', '退出登录')
   if (!ok) return
-  await auth.logout()
+  try {
+    await auth.logout()
+    files.clearAll()
+  } catch (e: any) {
+    await dialog.alert(e.response?.data?.error?.message || '退出失败，请重试', '错误')
+  }
 }
 
 function openShare() {
@@ -107,11 +114,15 @@ function openShare() {
         <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke-linecap="round" />
       </svg>
       <span class="user-name">{{ auth.user?.username }}</span>
+      <button class="mobile-close" aria-label="关闭文件列表" @click="emit('close-mobile')">×</button>
     </div>
 
     <!-- 操作按钮 -->
+    <div class="sidebar-section-title">
+      <span>文件</span><span>{{ files.list.length }}</span>
+    </div>
     <div class="sidebar-actions">
-      <button @click="newFile" class="sidebar-btn">
+      <button @click="newFile" class="sidebar-btn sidebar-btn-primary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
           <path d="M12 5V19" stroke-linecap="round"/>
           <path d="M5 12H19" stroke-linecap="round"/>
@@ -225,6 +236,8 @@ function openShare() {
   font-weight: 600;
   font-size: 14px;
 }
+.mobile-close { display: none; margin-left: auto; width: 36px; height: 36px; border: 0; background: transparent; color: var(--text-main); font-size: 24px; }
+.sidebar-section-title { display: flex; justify-content: space-between; padding: 16px 14px 4px; color: var(--text-sub); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
 
 .user-avatar {
   flex-shrink: 0;
@@ -265,6 +278,8 @@ function openShare() {
   background: var(--primary-soft);
   color: var(--primary-text);
 }
+.sidebar-btn-primary { border-color: var(--primary); background: var(--primary); color: white; }
+.sidebar-btn-primary:hover { background: var(--primary-hover); color: white; }
 
 .sidebar-btn:disabled {
   opacity: 0.4;
@@ -397,6 +412,8 @@ function openShare() {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
+.sidebar-footer .logout-btn:first-child:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-text); }
+@media (max-width: 767px) { .mobile-close { display: block; } .file-delete { opacity: 1; width: 36px; height: 36px; } }
 
 /* 修改密码弹窗 */
 .account-overlay {

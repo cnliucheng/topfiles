@@ -69,5 +69,11 @@ export const useFilesStore = defineStore('files', () => {
     current.value = null
   }
 
-  return { list, current, loading, error, fetchList, create, update, remove, loadFile, clearCurrent }
+  function clearAll() {
+    list.value = []
+    current.value = null
+    error.value = null
+  }
+
+  return { list, current, loading, error, fetchList, create, update, remove, loadFile, clearCurrent, clearAll }
 })
