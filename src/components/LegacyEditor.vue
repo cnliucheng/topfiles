@@ -28,7 +28,6 @@ const showPrivacyModal = ref(false)
 const pendingPrivacyMode = ref(false)
 const showAboutModal = ref(false)
 const showFileTypeMenu = ref(false)
-const showEditorMenu = ref(false)
 const fileTypeMenuRef = ref<HTMLElement | null>(null)
 const importModalRef = ref<HTMLElement | null>(null)
 const aboutModalRef = ref<HTMLElement | null>(null)
@@ -413,11 +412,10 @@ function closeAboutModal(): void {
 
 function onDocumentClick(event: MouseEvent): void {
   const target = event.target as Node | null
-  if (!target) return
-  if (fileTypeMenuRef.value && !fileTypeMenuRef.value.contains(target)) {
+  if (!target || !fileTypeMenuRef.value) return
+  if (!fileTypeMenuRef.value.contains(target)) {
     showFileTypeMenu.value = false
   }
-  if (!(target as HTMLElement).closest('.editor-more')) showEditorMenu.value = false
 }
 
 function formatBytes(bytes: number): string {
@@ -873,26 +871,125 @@ function isTextMime(mime: string): boolean {
         </div>
       </header>
 
-      <header class="editor-document-bar">
-        <input id="file-name" v-model="fileName" class="document-name" :placeholder="t('fileNamePlaceholder')" aria-label="文件名" />
-        <span class="save-state">{{ authStore.isLoggedIn ? '云端已保存' : '本地草稿' }}</span>
-        <div class="document-spacer"></div>
-        <div ref="fileTypeMenuRef" class="custom-select compact-select">
-          <button id="file-type-trigger" type="button" class="editor-icon-button" :aria-expanded="showFileTypeMenu" :title="t('fileType')" @click="toggleFileTypeMenu">.{{ ext }}</button>
-          <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
-            <li v-for="item in FILE_TYPES" :key="item.ext"><button type="button" class="select-option" :class="{ active: ext === item.ext }" @click="selectFileType(item.ext)">.{{ item.ext }} ({{ fileTypeLabel(item.ext) }})</button></li>
-          </ul>
+      <header class="toolbar">
+        <div class="field file-name-field">
+          <label for="file-name">{{ t('fileName') }}</label>
+          <input
+            id="file-name"
+            v-model="fileName"
+            type="text"
+            :placeholder="t('fileNamePlaceholder')"
+          />
         </div>
-        <button type="button" class="editor-icon-button" :title="t('download')" @click="onDownload">⇩</button>
-        <div class="editor-more">
-          <button type="button" class="editor-icon-button" title="更多操作" @click="showEditorMenu = !showEditorMenu">•••</button>
-          <div v-if="showEditorMenu" class="editor-action-menu">
-            <button type="button" @click="onUnifiedImport">导入内容</button>
-            <button type="button" @click="onClearDraft">{{ t('clearDraft') }}</button>
+
+        <div class="field">
+          <label for="file-type-trigger">{{ t('fileType') }}</label>
+          <div ref="fileTypeMenuRef" class="custom-select">
+            <button
+              id="file-type-trigger"
+              type="button"
+              class="select-trigger"
+              :aria-expanded="showFileTypeMenu"
+              @click="toggleFileTypeMenu"
+            >
+              .{{ ext }} ({{ fileTypeLabel(ext) }})
+            </button>
+
+            <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
+              <li v-for="item in FILE_TYPES" :key="item.ext">
+                <button
+                  type="button"
+                  class="select-option"
+                  :class="{ active: ext === item.ext }"
+                  @click="selectFileType(item.ext)"
+                >
+                  .{{ item.ext }} ({{ fileTypeLabel(item.ext) }})
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
-        <button v-if="authStore.isLoggedIn" type="button" class="save-primary" @click="onSaveToCloud">保存</button>
+
+        <div class="toolbar-actions">
+          <!-- 保存到云端按钮（登录后显示） -->
+          <button
+            v-if="authStore.isLoggedIn"
+            type="button"
+            class="download-btn action-with-icon"
+            @click="onSaveToCloud"
+          >
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M19 21H5C3.9 21 3 20.1 3 19V5C3 3.9 3.9 3 5 3H16L21 8V19C21 20.1 20.1 21 19 21Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 21V13H7V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 3V8H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>保存</span>
+          </button>
+
+          <button type="button" class="download-btn action-with-icon" @click="onDownload">
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M12 4V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path
+                d="M8.5 10.5L12 14L15.5 10.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M5 16.5V18C5 19.1 5.9 20 7 20H17C18.1 20 19 19.1 19 18V16.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span>{{ t('download') }}</span>
+          </button>
+
+          <button type="button" class="secondary-btn action-with-icon" @click="onClearDraft">
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 7H20"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="M9 7V5.8C9 4.8 9.8 4 10.8 4H13.2C14.2 4 15 4.8 15 5.8V7"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="M7.2 7L8 18C8.1 19.1 9 20 10.1 20H13.9C15 20 15.9 19.1 16 18L16.8 7"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span>{{ t('clearDraft') }}</span>
+          </button>
+        </div>
       </header>
+
       <section class="editor-wrap">
         <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
 
