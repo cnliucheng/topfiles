@@ -108,16 +108,21 @@ export default {
 /* 主布局：flex 左右排列 */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  padding: 14px;
+  gap: 14px;
 }
 
 /* 左侧文件列表 */
 .sidebar {
-  width: 240px;
-  min-width: 240px;
-  border-right: 1px solid var(--border, #ddd);
-  background: var(--bg, #fafafa);
+  width: 264px;
+  min-width: 264px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--surface-shadow);
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -137,6 +142,10 @@ export default {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+  box-shadow: var(--surface-shadow);
 }
 
 /* 登录按钮（固定在右上角） */
@@ -150,14 +159,15 @@ export default {
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid rgba(100, 100, 100, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  color: #333;
-  font-size: 13px;
+  min-height: 40px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  backdrop-filter: blur(22px);
+  color: var(--text-main);
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--surface-shadow);
 }
 .global-login-trigger:hover {
   background: rgba(255, 255, 255, 1);
@@ -176,8 +186,8 @@ export default {
 .auth-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(28, 28, 30, 0.28);
+  backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,9 +195,11 @@ export default {
 }
 .auth-modal-content {
   position: relative;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--surface-shadow);
+  backdrop-filter: blur(28px);
   max-width: 420px;
   width: 90%;
   max-height: 90vh;
@@ -201,10 +213,10 @@ export default {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(120, 120, 128, 0.12);
   border-radius: 50%;
   font-size: 20px;
   cursor: pointer;

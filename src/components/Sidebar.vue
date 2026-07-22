@@ -223,16 +223,16 @@ function openShare() {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  background: transparent;
+  border-right: 0;
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 16px 12px;
+  border-bottom: 0;
   font-weight: 600;
   font-size: 14px;
 }
@@ -253,8 +253,8 @@ function openShare() {
 .sidebar-actions {
   display: flex;
   gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 14px 14px;
+  border-bottom: 0;
 }
 
 .sidebar-btn {
@@ -263,6 +263,7 @@ function openShare() {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -307,9 +308,11 @@ function openShare() {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  margin: 2px 8px;
+  padding: 11px 10px;
+  border-radius: 10px;
   cursor: pointer;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   transition: background 0.1s;
 }
 
@@ -319,7 +322,8 @@ function openShare() {
 
 .file-item.active {
   background: var(--primary-soft);
-  border-left: 3px solid var(--primary);
+  border-left: 0;
+  color: var(--primary-text);
 }
 
 .file-icon {
@@ -384,8 +388,8 @@ function openShare() {
 .sidebar-footer {
   display: flex;
   gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border);
+  padding: 14px;
+  border-top: 0;
 }
 
 .logout-btn {
@@ -394,6 +398,7 @@ function openShare() {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 44px;
   padding: 8px 6px;
   white-space: nowrap;
   border: 1px solid var(--border);
