@@ -25,7 +25,8 @@ const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_RAW || 'dev-only-change-m
 
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true'
 if (IS_PROD && !COOKIE_SECURE) {
-  console.warn('[topfiles] WARNING: COOKIE_SECURE not enabled in production; session cookies may leak over HTTP')
+  console.error('[topfiles] FATAL: COOKIE_SECURE=true must be set in production')
+  process.exit(1)
 }
 
 // 仅在反向代理（Nginx 等）后面才应开启，否则客户端可伪造 x-forwarded-for 绕过限流。

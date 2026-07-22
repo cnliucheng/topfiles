@@ -2,23 +2,21 @@ import { createServer } from 'node:http'
 import { createDb } from '../src/db.js'
 import { signSession } from '../src/auth/jwt.js'
 import { matchRoute } from '../src/utils/router.js'
-import { unlinkSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { AppError } from '../src/errors.js'
 import { sendError, sendJson } from '../src/utils/json.js'
 
-const TEST_DB = './test-data.sqlite'
 const TEST_SECRET = new TextEncoder().encode('test-secret-32-bytes-long-12345')
-
-// SQLite 的 WAL 模式会额外产生 -shm / -wal 辅助文件，测试结束时一并清理，避免残留入库。
-function removeDb() {
-  for (const p of [TEST_DB, `${TEST_DB}-shm`, `${TEST_DB}-wal`]) {
-    if (existsSync(p)) unlinkSync(p)
-  }
-}
+let activeDb = null
+let activeDir = null
 
 export function setupTest() {
-  removeDb()
-  const db = createDb(TEST_DB)
+  cleanupTest()
+  activeDir = mkdtempSync(join(tmpdir(), 'topfiles-test-'))
+  const db = createDb(join(activeDir, 'data.sqlite'))
+  activeDb = db
   const routes = {}
   return { db, routes, secret: TEST_SECRET }
 }
@@ -49,7 +47,13 @@ export async function authedRequest(server, method, path, body, username = 'alic
 
 export function request(server, method, path, body, headers = {}) {
   return new Promise((resolve, reject) => {
-    server.listen(0, async () => {
+    const close = () => new Promise((done, fail) => {
+      if (!server.listening) return done()
+      server.close((error) => error ? fail(error) : done())
+    })
+
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', async () => {
       try {
         const port = server.address().port
         const res = await fetch(`http://127.0.0.1:${port}${path}`, {
@@ -58,13 +62,19 @@ export function request(server, method, path, body, headers = {}) {
           body: body || undefined,
         })
         const text = await res.text()
-        server.close()
+        await close()
         resolve({ status: res.status, body: text, json: () => JSON.parse(text), headers: res.headers })
-      } catch (e) { server.close(); reject(e) }
+      } catch (e) {
+        try { await close() } catch {}
+        reject(e)
+      }
     })
   })
 }
 
 export function cleanupTest() {
-  removeDb()
+  activeDb?.close()
+  activeDb = null
+  if (activeDir) rmSync(activeDir, { recursive: true, force: true })
+  activeDir = null
 }

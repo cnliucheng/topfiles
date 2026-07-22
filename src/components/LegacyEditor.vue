@@ -100,9 +100,13 @@ const IMPORT_TIMEOUT_MS = 12_000
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const MIN_FONT_SIZE = 11
 const MAX_FONT_SIZE = 20
+const CLOUD_SAVE_DEBOUNCE_MS = 500
 
 type ThemeMode = 'light' | 'dark'
 const themeMode = ref<ThemeMode>('light')
+let cloudSaveTimer: number | null = null
+let pendingCloudSave: { id: number; content: string; mimeType: string } | null = null
+let cloudSaveInFlight = false
 
 const activeLocale = computed({
   get: () => locale.value as AppLocale,
@@ -188,19 +192,38 @@ function saveDraft(): void {
     })
   )
 
-  // 如果登录，异步保存到云端（自动匹配同名文件）
+  // 如果登录，延迟并串行保存到云端，避免较早请求在网络延迟下覆盖新内容。
   if (authStore.isLoggedIn) {
     const fullFilename = `${fileName.value}.${ext.value}`
     const existing = filesStore.list.find(
       f => f.filename.toLowerCase() === fullFilename.toLowerCase()
     )
     const fileId = filesStore.current?.id ?? existing?.id
-    if (fileId) {
-      filesStore.update(fileId, {
-        content: content.value,
-        mimeType: getMimeType(ext.value)
-      }).catch(() => {})
-    }
+    if (fileId) queueCloudSave(fileId, content.value, getMimeType(ext.value))
+  }
+}
+
+function queueCloudSave(id: number, nextContent: string, mimeType: string): void {
+  pendingCloudSave = { id, content: nextContent, mimeType }
+  if (cloudSaveTimer !== null) window.clearTimeout(cloudSaveTimer)
+  cloudSaveTimer = window.setTimeout(() => {
+    cloudSaveTimer = null
+    void flushCloudSave()
+  }, CLOUD_SAVE_DEBOUNCE_MS)
+}
+
+async function flushCloudSave(): Promise<void> {
+  if (cloudSaveInFlight || !pendingCloudSave) return
+  cloudSaveInFlight = true
+  const snapshot = pendingCloudSave
+  pendingCloudSave = null
+  try {
+    await filesStore.update(snapshot.id, { content: snapshot.content, mimeType: snapshot.mimeType })
+  } catch {
+    // 自动保存失败不打断本地编辑；用户可使用显式保存重试。
+  } finally {
+    cloudSaveInFlight = false
+    if (pendingCloudSave) void flushCloudSave()
   }
 }
 
@@ -267,6 +290,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
+  if (cloudSaveTimer !== null) window.clearTimeout(cloudSaveTimer)
 })
 
 function detectTheme(): ThemeMode {

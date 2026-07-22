@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from './stores/auth'
-import LegacyEditor from './components/LegacyEditor.vue'
 import LoginView from './views/LoginView.vue'
 import SetupView from './views/SetupView.vue'
+
+const LegacyEditor = defineAsyncComponent(() => import('./components/LegacyEditor.vue'))
 
 const auth = useAuthStore()
 const showAuthModal = ref(false)

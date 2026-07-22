@@ -18,7 +18,7 @@ describe('GET /u/:filename', () => {
     const res = await request(server, 'GET', '/u/hello.md')
     expect(res.status).toBe(200)
     expect(res.body).toBe('# Hello')
-    expect(res.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
   })
 
   it('returns 404 for missing file', async () => {
@@ -55,10 +55,18 @@ describe('GET /u/:filename', () => {
     expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
   })
 
-  it('keeps safe content types untouched', async () => {
+  it('serves JavaScript files as text/plain to prevent same-origin execution', async () => {
+    ctx.db.prepare('INSERT INTO files (filename, content, mime_type, size_bytes) VALUES (?, ?, ?, ?)')
+      .run('evil.js', 'fetch("/api/files")', 'application/javascript; charset=utf-8', 19)
+    const res = await request(server, 'GET', '/u/evil.js')
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it('serves non-executable files as text/plain too', async () => {
     ctx.db.prepare('INSERT INTO files (filename, content, mime_type, size_bytes) VALUES (?, ?, ?, ?)')
       .run('a.md', '# Hello', 'text/markdown; charset=utf-8', 7)
     const res = await request(server, 'GET', '/u/a.md')
-    expect(res.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
   })
 })
