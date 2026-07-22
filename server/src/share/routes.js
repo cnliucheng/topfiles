@@ -2,8 +2,20 @@
 // 固定按纯文本返回，确保任何文件都不会被浏览器解释或执行。
 const SHARE_CONTENT_TYPE = 'text/plain; charset=utf-8'
 
-export function registerShareRoutes(routes, { db }) {
+export function registerShareRoutes(routes, { db, rateLimit, trustProxy = false }) {
+  function getClientIp(req) {
+    if (trustProxy) {
+      const xff = req.headers['x-forwarded-for']
+      if (xff) return xff.split(',')[0].trim()
+    }
+    return req.socket.remoteAddress
+  }
+
   routes['GET /u/:filename'] = (req, res) => {
+    if (rateLimit && !rateLimit.allow(`share:${getClientIp(req)}`, 30, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '60' })
+      return res.end('Too many requests')
+    }
     const row = db.prepare(`
       SELECT filename, content, mime_type FROM files WHERE filename = ?
     `).get(req.params.filename)

@@ -4,14 +4,17 @@ import { useI18n } from 'vue-i18n'
 import { useFilesStore } from '../stores/files'
 import { useAuthStore } from '../stores/auth'
 import { useDialogStore } from '../stores/dialog'
+import { useUiStore } from '../stores/ui'
 import CodeEditor from './CodeEditor.vue'
 import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from '../i18n'
+import { useTheme } from '../composables/useTheme'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from '../utils/file'
 
 const filesStore = useFilesStore()
 const authStore = useAuthStore()
 const dialog = useDialogStore()
+const ui = useUiStore()
 
 const fileName = ref('untitled')
 const ext = ref<FileExtension>('txt')
@@ -91,7 +94,6 @@ function fileTypeLabel(ext: FileExtension): string {
   const key = `fileTypes.${ext}`
   return te(key) ? t(key) : (FILE_TYPES.find((f) => f.ext === ext)?.label ?? ext)
 }
-const THEME_STORAGE_KEY = 'file-builder-theme'
 const DRAFT_STORAGE_KEY = 'file-builder-draft-v1'
 const PRIVACY_MODE_KEY = 'file-builder-privacy-mode-v1'
 const FONT_SIZE_KEY = 'file-builder-font-size-v1'
@@ -102,8 +104,6 @@ const MIN_FONT_SIZE = 11
 const MAX_FONT_SIZE = 20
 const CLOUD_SAVE_DEBOUNCE_MS = 500
 
-type ThemeMode = 'light' | 'dark'
-const themeMode = ref<ThemeMode>('light')
 let cloudSaveTimer: number | null = null
 let pendingCloudSave: { id: number; content: string; mimeType: string } | null = null
 let cloudSaveInFlight = false
@@ -293,32 +293,8 @@ onBeforeUnmount(() => {
   if (cloudSaveTimer !== null) window.clearTimeout(cloudSaveTimer)
 })
 
-function detectTheme(): ThemeMode {
-  const saved = safeGetStorage(THEME_STORAGE_KEY)
-  if (saved === 'light' || saved === 'dark') return saved
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
-}
-
-function applyTheme(mode: ThemeMode): void {
-  document.documentElement.setAttribute('data-theme', mode)
-}
-
-themeMode.value = detectTheme()
-applyTheme(themeMode.value)
-
-watch(
-  () => themeMode.value,
-  (nextTheme) => {
-    safeSetStorage(THEME_STORAGE_KEY, nextTheme)
-    applyTheme(nextTheme)
-  }
-)
-
-function toggleTheme(): void {
-  themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
-}
+// 使用统一主题 composable
+const { themeMode, toggleTheme } = useTheme()
 
 function toggleLocale(): void {
   activeLocale.value = activeLocale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
@@ -684,7 +660,27 @@ function isTextMime(mime: string): boolean {
     <main class="app">
       <header class="top-bar">
         <div class="brand">
-          <span class="brand-logo" aria-hidden="true">F</span>
+          <button
+            v-if="authStore.isLoggedIn"
+            type="button"
+            class="icon-btn mobile-files-btn"
+            :aria-label="t('files')"
+            @click="ui.sidebarOpen = true"
+          >
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 7H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M4 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M4 17H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+          <span class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.5 3H7.5C6.4 3 5.5 3.9 5.5 5V19C5.5 20.1 6.4 21 7.5 21H16.5C17.6 21 18.5 20.1 18.5 19V8L13.5 3Z" fill="white" fill-opacity="0.95" />
+              <path d="M13.5 3V7.2C13.5 7.64 13.86 8 14.3 8H18.5L13.5 3Z" fill="#c9c4ff" />
+              <path d="M8.5 12.5H15.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
+              <path d="M8.5 15.5H13.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+          </span>
           <span class="brand-name">{{ t('title') }}</span>
         </div>
 
@@ -797,7 +793,6 @@ function isTextMime(mime: string): boolean {
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="icon-state-badge">{{ privacyMode ? 'ON' : 'OFF' }}</span>
           </button>
 
           <button
@@ -868,27 +863,37 @@ function isTextMime(mime: string): boolean {
               <circle cx="12" cy="7.2" r="1" fill="currentColor" />
             </svg>
           </button>
+
+          <template v-if="!authStore.isLoggedIn">
+            <span class="top-actions-divider" aria-hidden="true"></span>
+            <button type="button" class="login-btn" @click="ui.openAuthModal()">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8" />
+              </svg>
+              <span>{{ t('login') }}</span>
+            </button>
+          </template>
         </div>
       </header>
 
       <header class="toolbar">
-        <div class="field file-name-field">
-          <label for="file-name">{{ t('fileName') }}</label>
+        <div class="doc-fields">
           <input
             id="file-name"
             v-model="fileName"
+            class="doc-name"
             type="text"
             :placeholder="t('fileNamePlaceholder')"
+            :aria-label="t('fileName')"
           />
-        </div>
 
-        <div class="field">
-          <label for="file-type-trigger">{{ t('fileType') }}</label>
           <div ref="fileTypeMenuRef" class="custom-select">
             <button
               id="file-type-trigger"
               type="button"
               class="select-trigger"
+              :aria-label="t('fileType')"
               :aria-expanded="showFileTypeMenu"
               @click="toggleFileTypeMenu"
             >
@@ -915,7 +920,7 @@ function isTextMime(mime: string): boolean {
           <button
             v-if="authStore.isLoggedIn"
             type="button"
-            class="download-btn action-with-icon"
+            class="btn-primary action-with-icon"
             @click="onSaveToCloud"
           >
             <svg
@@ -932,7 +937,11 @@ function isTextMime(mime: string): boolean {
             <span>保存</span>
           </button>
 
-          <button type="button" class="download-btn action-with-icon" @click="onDownload">
+          <button
+            type="button"
+            :class="[authStore.isLoggedIn ? 'btn-outline' : 'btn-primary', 'action-with-icon']"
+            @click="onDownload"
+          >
             <svg
               class="btn-icon"
               viewBox="0 0 24 24"
@@ -958,7 +967,7 @@ function isTextMime(mime: string): boolean {
             <span>{{ t('download') }}</span>
           </button>
 
-          <button type="button" class="secondary-btn action-with-icon" @click="onClearDraft">
+          <button type="button" class="btn-ghost action-with-icon" @click="onClearDraft">
             <svg
               class="btn-icon"
               viewBox="0 0 24 24"

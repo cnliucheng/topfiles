@@ -26,11 +26,42 @@ function close() { emit('update:open', false) }
 </template>
 
 <style scoped>
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: var(--bg-card, white); color: var(--text-main); padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; border: 1px solid var(--border); }
-.modal h2 { margin: 0 0 1rem; }
-.modal p { margin: 0 0 0.75rem; }
-.hint { color: var(--text-sub, #888); font-size: 0.85rem; margin-top: 1rem; }
-.close-btn { margin-top: 1rem; padding: 0.5rem 1rem; border: 1px solid var(--border); background: transparent; color: var(--text-main); border-radius: 6px; cursor: pointer; }
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 16, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal {
+  background: var(--bg-panel);
+  color: var(--text-main);
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  max-width: 500px;
+  width: 100%;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
+}
+.modal h2 { margin: 0 0 8px; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+.modal p { margin: 0 0 0.75rem; font-size: 13px; color: var(--text-sub); }
+.hint { color: var(--text-faint); font-size: 12px; margin-top: 1rem; }
+.close-btn {
+  margin-top: 1.25rem;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 550;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
 .close-btn:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
 </style>

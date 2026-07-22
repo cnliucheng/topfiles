@@ -41,7 +41,7 @@ const rateLimit = new RateLimiter()
 const routes = {}
 registerAuthRoutes(routes, { db, secret: JWT_SECRET, cookieSecure: COOKIE_SECURE, rateLimit, trustProxy: TRUST_PROXY })
 registerFileRoutes(routes, { db, secret: JWT_SECRET })
-registerShareRoutes(routes, { db })
+registerShareRoutes(routes, { db, rateLimit, trustProxy: TRUST_PROXY })
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x')
@@ -69,3 +69,22 @@ server.listen(PORT, () => {
   console.log(`[topfiles] db: ${DB_PATH}`)
   console.log(`[topfiles] trust proxy: ${TRUST_PROXY}`)
 })
+
+function shutdown(signal) {
+  console.log(`[topfiles] received ${signal}, shutting down gracefully...`)
+  server.close((err) => {
+    if (err) {
+      console.error('[topfiles] error during shutdown:', err)
+      process.exit(1)
+    }
+    console.log('[topfiles] server closed, all connections drained')
+    process.exit(0)
+  })
+  setTimeout(() => {
+    console.warn('[topfiles] forced shutdown after 10s timeout')
+    process.exit(1)
+  }, 10000)
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

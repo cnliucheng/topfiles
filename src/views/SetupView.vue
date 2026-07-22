@@ -35,29 +35,39 @@ async function onSubmit() {
 
 <template>
   <div class="auth-page">
-    <div class="card">
-      <h1>TopFiles</h1>
-      <p class="hint">{{ t('setup.welcome', '欢迎使用，请创建账号（仅一次）') }}</p>
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.5 3H7.5C6.4 3 5.5 3.9 5.5 5V19C5.5 20.1 6.4 21 7.5 21H16.5C17.6 21 18.5 20.1 18.5 19V8L13.5 3Z" fill="white" fill-opacity="0.95" />
+            <path d="M13.5 3V7.2C13.5 7.64 13.86 8 14.3 8H18.5L13.5 3Z" fill="#c9c4ff" />
+            <path d="M8.5 12.5H15.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M8.5 15.5H13.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </span>
+        <h1>TopFiles</h1>
+      </div>
+      <p class="auth-hint">{{ t('setup.welcome', '欢迎使用，请创建账号（仅一次）') }}</p>
       <form @submit.prevent="onSubmit">
         <label>
           <span>{{ t('auth.username', '用户名') }}</span>
           <input v-model="username" type="text" autocomplete="username" :placeholder="t('auth.usernamePlaceholder', '3-32 位字母数字 _ -')" />
         </label>
-        <p v-if="username && !usernameValid" class="err">{{ t('auth.usernameInvalid', '格式：3-32 位，字母数字 _ -') }}</p>
+        <p v-if="username && !usernameValid" class="auth-err">{{ t('auth.usernameInvalid', '格式：3-32 位，字母数字 _ -') }}</p>
 
         <label>
           <span>{{ t('auth.password', '密码') }}</span>
           <input v-model="password" type="password" autocomplete="new-password" :placeholder="t('auth.passwordPlaceholder', '至少 8 位')" />
         </label>
-        <p v-if="password && !passwordValid" class="err">{{ t('auth.passwordShort', '密码至少 8 位') }}</p>
+        <p v-if="password && !passwordValid" class="auth-err">{{ t('auth.passwordShort', '密码至少 8 位') }}</p>
 
         <label>
           <span>{{ t('auth.confirmPassword', '确认密码') }}</span>
           <input v-model="confirmPassword" type="password" autocomplete="new-password" />
         </label>
-        <p v-if="confirmPassword && !match" class="err">{{ t('auth.passwordMismatch', '两次密码不一致') }}</p>
+        <p v-if="confirmPassword && !match" class="auth-err">{{ t('auth.passwordMismatch', '两次密码不一致') }}</p>
 
-        <p v-if="error" class="err err-banner">{{ error }}</p>
+        <p v-if="error" class="auth-err auth-err-banner">{{ error }}</p>
 
         <button type="submit" :disabled="!canSubmit">
           {{ submitting ? t('auth.submitting', '创建中...') : t('auth.createAccount', '创建账号') }}
@@ -68,43 +78,5 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-.auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.card { width: 100%; max-width: 380px; padding: 2rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text-main); }
-h1 { margin: 0 0 0.5rem; }
-.hint { color: var(--text-sub); margin-bottom: 1.5rem; font-size: 0.9rem; }
-label { display: block; margin-bottom: 0.5rem; }
-label > span { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-sub); }
-input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; background: var(--bg-panel); color: var(--text-main); }
-input:focus { border-color: var(--primary); outline: none; }
-.err { color: #ef4444; font-size: 0.8rem; margin: 0.25rem 0 0.5rem; }
-.err-banner { padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 4px; }
-button { width: 100%; padding: 0.75rem; margin-top: 1rem; border: none; border-radius: 6px; background: var(--primary); color: white; cursor: pointer; }
-button:hover { background: var(--primary-hover); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* 暗黑模式 */
-:global([data-theme="dark"]) .card { background: #1e1e1e; color: #e0e0e0; border-color: #333; }
-:global([data-theme="dark"]) input { background: #2a2a2a; border-color: #444; color: #e0e0e0; }
-:global([data-theme="dark"]) label > span { color: #888; }
-:global([data-theme="dark"]) .hint { color: #888; }
-
-/* 覆盖 Chrome autofill 样式 */
-:deep(input:-webkit-autofill),
-:deep(input:-webkit-autofill:hover),
-:deep(input:-webkit-autofill:focus),
-:deep(input:-webkit-autofill:active) {
-  -webkit-box-shadow: 0 0 0 30px var(--bg-panel) inset !important;
-  -webkit-text-fill-color: var(--text-main) !important;
-  caret-color: var(--text-main);
-  transition: background-color 9999s ease-in-out 0s;
-}
-
-:global([data-theme="dark"]) input:-webkit-autofill,
-:global([data-theme="dark"]) input:-webkit-autofill:hover,
-:global([data-theme="dark"]) input:-webkit-autofill:focus,
-:global([data-theme="dark"]) input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #2a2a2a inset !important;
-  -webkit-text-fill-color: #e0e0e0 !important;
-  caret-color: #e0e0e0;
-}
+/* 所有样式由全局 style.css 的 .auth-card 体系提供 */
 </style>

@@ -1,0 +1,20 @@
+services:
+  topfiles:
+    build: .
+    container_name: topfiles
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - topfiles-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret-at-least-32-bytes}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - TRUST_PROXY=${TRUST_PROXY:-true}
+      - PORT=3000
+      - STATIC_DIR=/app/dist
+      - DB_PATH=/app/data/data.db
+
+volumes:
+  topfiles-data:

@@ -1,79 +1,45 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from './stores/auth'
 import { useFilesStore } from './stores/files'
+import { useUiStore } from './stores/ui'
 import LoginView from './views/LoginView.vue'
 import SetupView from './views/SetupView.vue'
 
 const LegacyEditor = defineAsyncComponent(() => import('./components/LegacyEditor.vue'))
+const { t } = useI18n()
 
 const auth = useAuthStore()
 const files = useFilesStore()
-const showAuthModal = ref(false)
-const themeMode = ref<'light' | 'dark'>('light')
-const sidebarOpen = ref(false)
-
-function onLoginClick() {
-  showAuthModal.value = true
-}
-
-function onAuthClose() {
-  showAuthModal.value = false
-}
-
-function detectTheme(): 'light' | 'dark' {
-  const saved = localStorage.getItem('themeMode')
-  if (saved === 'light' || saved === 'dark') return saved
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyTheme(mode: 'light' | 'dark') {
-  document.documentElement.setAttribute('data-theme', mode)
-}
-
-onMounted(() => {
-  auth.init()
-  themeMode.value = detectTheme()
-  applyTheme(themeMode.value)
-})
-
-watch(themeMode, (mode) => {
-  applyTheme(mode)
-  localStorage.setItem('themeMode', mode)
-})
+const ui = useUiStore()
 
 watch(() => auth.isLoggedIn, (loggedIn) => {
   if (!loggedIn) {
     files.clearAll()
-    sidebarOpen.value = false
+    ui.sidebarOpen = false
   }
 })
 
+onMounted(() => {
+  auth.init()
+})
 </script>
 
 <template>
-  <!-- 登录按钮（右上角，只在未登录时显示） -->
-  <button
-    v-if="!auth.isLoggedIn"
-    class="global-login-trigger"
-    @click="onLoginClick"
-  >
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-      <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-      <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8" />
-    </svg>
-    <span>登录 / 注册</span>
-  </button>
-
   <!-- 主界面：始终显示编辑器，登录后左侧加文件列表 -->
   <div class="app-layout">
-    <button v-if="auth.isLoggedIn" class="mobile-files-toggle" aria-label="打开文件列表" @click="sidebarOpen = true">
-      文件
-    </button>
     <!-- 左侧文件列表（只在登录后显示） -->
-    <aside v-if="auth.isLoggedIn" class="sidebar" :class="{ open: sidebarOpen }">
-      <Sidebar @close-mobile="sidebarOpen = false" />
+    <aside v-if="auth.isLoggedIn" class="sidebar" :class="{ open: ui.sidebarOpen }">
+      <Sidebar @close-mobile="ui.sidebarOpen = false" />
     </aside>
+
+    <!-- 移动端侧栏遮罩 -->
+    <div
+      v-if="auth.isLoggedIn && ui.sidebarOpen"
+      class="sidebar-scrim"
+      @click="ui.sidebarOpen = false"
+    ></div>
 
     <!-- 右侧编辑器区域（始终显示） -->
     <main class="editor-main">
@@ -85,12 +51,12 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   <CustomDialog />
 
   <!-- 登录/注册弹窗 -->
-  <div v-if="showAuthModal" class="auth-modal-overlay" @click.self="onAuthClose">
+  <div v-if="ui.authModalOpen" class="auth-modal-overlay" @click.self="ui.closeAuthModal">
     <div class="auth-modal-content">
-      <button class="auth-modal-close" @click="onAuthClose">×</button>
-      <SetupView v-if="auth.isInitialized === false" @success="onAuthClose" />
-      <LoginView v-else-if="auth.isInitialized === true" @success="onAuthClose" />
-      <div v-else class="auth-loading">加载中...</div>
+      <button class="auth-modal-close" :aria-label="t('cancel')" @click="ui.closeAuthModal">&times;</button>
+      <SetupView v-if="auth.isInitialized === false" @success="ui.closeAuthModal" />
+      <LoginView v-else-if="auth.isInitialized === true" @success="ui.closeAuthModal" />
+      <div v-else class="auth-loading">{{ t('loading') }}</div>
     </div>
   </div>
 </template>
@@ -105,31 +71,27 @@ export default {
 </script>
 
 <style>
-/* 主布局：flex 左右排列 */
+/* 主布局：全幅 flex 左右排列 */
 .app-layout {
   display: flex;
-  min-height: 100vh;
   width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-page);
 }
 
 /* 左侧文件列表 */
 .sidebar {
-  width: 240px;
-  min-width: 240px;
-  border-right: 1px solid var(--border, #ddd);
-  background: var(--bg, #fafafa);
+  width: 264px;
+  min-width: 264px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-subtle);
   overflow-y: auto;
   flex-shrink: 0;
 }
-.mobile-files-toggle { display: none; }
-@media (max-width: 767px) {
-  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 2500; width: min(88vw, 320px); min-width: 0; transform: translateX(-105%); transition: transform .2s ease-out; box-shadow: 12px 0 32px rgba(0,0,0,.18); }
-  .sidebar.open { transform: translateX(0); }
-  .mobile-files-toggle { display: block; position: fixed; z-index: 1200; left: 12px; top: 12px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); color: var(--text-main); font-weight: 600; }
-}
-[data-theme="dark"] .sidebar {
-  background: #1a1a1a;
-  border-color: #333;
+
+.sidebar-scrim {
+  display: none;
 }
 
 /* 右侧编辑器（flex: 1 填满剩余空间） */
@@ -139,95 +101,86 @@ export default {
   overflow: hidden;
 }
 
-/* 登录按钮（固定在右上角） */
-.global-login-trigger {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid rgba(100, 100, 100, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  color: #333;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.global-login-trigger:hover {
-  background: rgba(255, 255, 255, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-[data-theme="dark"] .global-login-trigger {
-  background: rgba(30, 30, 30, 0.9);
-  border-color: rgba(100, 100, 100, 0.3);
-  color: #eee;
-}
-[data-theme="dark"] .global-login-trigger:hover {
-  background: rgba(40, 40, 40, 1);
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2500;
+    width: min(86vw, 320px);
+    min-width: 0;
+    transform: translateX(-105%);
+    transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 2400;
+    background: rgba(10, 10, 16, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
 }
 
 /* 登录弹窗 */
 .auth-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(10, 10, 16, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  padding: 16px;
 }
+
 .auth-modal-content {
   position: relative;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: var(--bg-panel);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
   max-width: 420px;
-  width: 90%;
+  width: 100%;
   max-height: 90vh;
   overflow-y: auto;
 }
-[data-theme="dark"] .auth-modal-content {
-  background: #1e1e1e;
-  color: #e0e0e0;
-}
+
 .auth-modal-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 50%;
+  background: transparent;
+  border-radius: var(--radius-md);
   font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--text-sub);
   z-index: 10;
 }
-[data-theme="dark"] .auth-modal-close {
-  background: rgba(255, 255, 255, 0.1);
-  color: #aaa;
-}
+
 .auth-modal-close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--bg-hover);
+  color: var(--text-main);
 }
-[data-theme="dark"] .auth-modal-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+
 .auth-loading {
   padding: 2rem;
   text-align: center;
-  color: #666;
+  color: var(--text-sub);
 }
 
 /* 弹窗内表单样式 */
@@ -235,48 +188,11 @@ export default {
   min-height: auto;
   padding: 0;
 }
-.auth-modal-content .card {
+
+.auth-modal-content .auth-card {
   border: none;
   box-shadow: none;
   padding: 2rem;
   background: transparent;
-}
-[data-theme="dark"] .auth-modal-content .card {
-  background: transparent;
-  color: #e0e0e0;
-}
-
-/* 暗黑模式：输入框等 - 使用 !important 覆盖 scoped 样式 */
-[data-theme="dark"] .auth-modal-content input {
-  background: #2a2a2a !important;
-  border-color: #444 !important;
-  color: #e0e0e0 !important;
-}
-[data-theme="dark"] .auth-modal-content button[type="submit"] {
-  background: #3b82f6 !important;
-  color: white !important;
-}
-[data-theme="dark"] .auth-modal-content h1 {
-  color: #e0e0e0 !important;
-}
-[data-theme="dark"] .auth-modal-content .hint {
-  color: #888 !important;
-}
-[data-theme="dark"] .auth-modal-content .err {
-  color: #f87171 !important;
-}
-[data-theme="dark"] .auth-modal-content label > span {
-  color: #ccc !important;
-}
-[data-theme="dark"] .auth-modal-content .err-banner {
-  background: rgba(239, 68, 68, 0.15) !important;
-  color: #f87171 !important;
-}
-[data-theme="dark"] .auth-modal-content .auth-loading {
-  color: #888 !important;
-}
-[data-theme="dark"] .auth-modal-content .card {
-  background: transparent !important;
-  color: #e0e0e0 !important;
 }
 </style>

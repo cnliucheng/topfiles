@@ -168,13 +168,15 @@ onMounted(() => {
         '.cm-scroller': {
           fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
           fontSize: 'var(--editor-font-size, 13px)',
-          lineHeight: '1.55'
+          lineHeight: '1.6'
         },
         '.cm-content': {
-          caretColor: 'var(--editor-caret)'
+          caretColor: 'var(--editor-caret)',
+          padding: '10px 0'
         },
         '.cm-cursor, .cm-dropCursor': {
-          borderLeftColor: 'var(--editor-caret)'
+          borderLeftColor: 'var(--editor-caret)',
+          borderLeftWidth: '2px'
         },
         '.cm-gutters': {
           backgroundColor: 'var(--editor-gutter-bg)',
@@ -183,6 +185,9 @@ onMounted(() => {
         },
         '.cm-activeLineGutter': {
           backgroundColor: 'var(--editor-active-gutter)'
+        },
+        '.cm-activeLine': {
+          backgroundColor: 'var(--editor-active-line)'
         }
       }),
       languageCompartment.of([]),

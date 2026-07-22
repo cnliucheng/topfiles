@@ -1,0 +1,12 @@
+node_modules/
+dist/
+server/node_modules/
+server/*.db
+server/*.db-shm
+server/*.db-wal
+.git/
+.gitignore
+docs/
+.workbuddy/
+.claude/
+*.md
