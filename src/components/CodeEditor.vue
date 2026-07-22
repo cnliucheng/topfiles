@@ -119,6 +119,8 @@ const LANGUAGE_LOADERS: Record<string, () => Promise<Extension>> = {
   python:     () => import('@codemirror/lang-python').then((m) => m.python()),
   javascript: () => import('@codemirror/lang-javascript').then((m) => m.javascript({ typescript: false })),
   typescript: () => import('@codemirror/lang-javascript').then((m) => m.javascript({ typescript: true })),
+  jsx:        () => import('@codemirror/lang-javascript').then((m) => m.javascript({ jsx: true })),
+  tsx:        () => import('@codemirror/lang-javascript').then((m) => m.javascript({ typescript: true, jsx: true })),
   shell:      () => import('@codemirror/legacy-modes/mode/shell').then(({ shell }) =>
     import('@codemirror/language').then(({ StreamLanguage }) => StreamLanguage.define(shell))
   ),

@@ -28,6 +28,8 @@ export function inferSupportedExtension(name: string): FileExtension | null {
   const normalized = normalizeRawName(name)
   if (!normalized) return null
 
+  if (normalized.toLowerCase() === '.env') return 'env'
+
   const ext = extractExtension(normalized)
   if (!ext || !FILE_TYPE_SET.has(ext as FileExtension)) return null
   return ext as FileExtension

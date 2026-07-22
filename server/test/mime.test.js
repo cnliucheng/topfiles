@@ -19,4 +19,12 @@ describe('sniffMime', () => {
   it('is case-insensitive', () => {
     expect(sniffMime('A.MD')).toContain('text')
   })
+
+  it('recognizes common editable formats', () => {
+    expect(sniffMime('notes.csv')).toBe('text/csv; charset=utf-8')
+    expect(sniffMime('notes.tsv')).toBe('text/tab-separated-values; charset=utf-8')
+    expect(sniffMime('schema.sql')).toBe('application/sql; charset=utf-8')
+    expect(sniffMime('config.toml')).toBe('application/toml; charset=utf-8')
+    expect(sniffMime('component.tsx')).toBe('text/typescript; charset=utf-8')
+  })
 })
