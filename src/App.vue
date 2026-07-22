@@ -110,8 +110,8 @@ export default {
   display: flex;
   min-height: 100dvh;
   width: 100%;
-  padding: 0;
-  gap: 0;
+  padding: 14px;
+  gap: 14px;
 }
 
 /* 左侧文件列表 */
@@ -142,10 +142,10 @@ export default {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+  box-shadow: var(--surface-shadow);
 }
 
 /* 登录按钮（固定在右上角） */
