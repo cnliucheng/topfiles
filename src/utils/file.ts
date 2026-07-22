@@ -39,6 +39,8 @@ export function buildFileName(name: string, ext: FileExtension): string {
   const normalized = normalizeRawName(name)
   if (!normalized) return `untitled.${ext}`
 
+  if (normalized.toLowerCase() === '.env') return normalized
+
   const explicitExt = extractExtension(normalized)
   if (explicitExt) return normalized
 
