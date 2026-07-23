@@ -18,6 +18,7 @@
     "@codemirror/lang-php": "^6.0.2",
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/legacy-modes": "^6.5.3",
+    "@tabler/icons-vue": "^3.45.0",
     "axios": "^1.18.1",
     "codemirror": "^6.0.2",
     "pinia": "^3.0.4",

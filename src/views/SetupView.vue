@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from 'vue-i18n'
+import { IconFileText } from '@tabler/icons-vue'
 
 const emit = defineEmits<{ (e: 'success'): void }>()
 const auth = useAuthStore()
@@ -38,12 +39,7 @@ async function onSubmit() {
     <div class="auth-card">
       <div class="auth-logo">
         <span class="brand-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13.5 3H7.5C6.4 3 5.5 3.9 5.5 5V19C5.5 20.1 6.4 21 7.5 21H16.5C17.6 21 18.5 20.1 18.5 19V8L13.5 3Z" fill="white" fill-opacity="0.95" />
-            <path d="M13.5 3V7.2C13.5 7.64 13.86 8 14.3 8H18.5L13.5 3Z" fill="#c9c4ff" />
-            <path d="M8.5 12.5H15.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
-            <path d="M8.5 15.5H13.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
-          </svg>
+          <IconFileText :size="18" :stroke-width="1.8" />
         </span>
         <h1>TopFiles</h1>
       </div>

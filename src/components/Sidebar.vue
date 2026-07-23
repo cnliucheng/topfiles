@@ -6,6 +6,14 @@ import { useAuthStore } from '../stores/auth'
 import { useDialogStore } from '../stores/dialog'
 import { api } from '../api/client'
 import ShareDialog from './ShareDialog.vue'
+import {
+  IconPlus,
+  IconShare2,
+  IconFolder,
+  IconFile,
+  IconKey,
+  IconLogout
+} from '@tabler/icons-vue'
 
 const { t } = useI18n()
 const files = useFilesStore()
@@ -203,18 +211,11 @@ function openShare() {
 
     <div class="sidebar-actions">
       <button @click="newFile" class="sidebar-btn sidebar-btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-          <path d="M12 5V19" stroke-linecap="round"/>
-          <path d="M5 12H19" stroke-linecap="round"/>
-        </svg>
+        <IconPlus :size="16" :stroke-width="1.8" />
         <span>{{ t('newFile') }}</span>
       </button>
       <button @click="openShare" class="sidebar-btn" :disabled="!files.current">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-          <path d="M4 12V20C4 20.5523 4.44772 21 5 21H19C19.5523 21 20 20.5523 20 20V12" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M16 6L12 2L8 6" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M12 2V15" stroke-linecap="round"/>
-        </svg>
+        <IconShare2 :size="16" :stroke-width="1.8" />
         <span>{{ t('share') }}</span>
       </button>
     </div>
@@ -246,9 +247,7 @@ function openShare() {
       <ul class="file-list">
         <li v-if="files.loading" class="empty-state">{{ t('loading') }}</li>
         <li v-else-if="filteredList.length === 0" class="empty-state">
-          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
-            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <IconFolder :size="32" :stroke-width="1.5" class="empty-icon" />
           <span>{{ searchQuery ? t('searchFiles') : t('noFiles') }}</span>
         </li>
         <li
@@ -265,10 +264,7 @@ function openShare() {
             :checked="selectedIds.has(f.id)"
             @click.stop="toggleSelect(f.id)"
           />
-          <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
-            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="13,2 13,9 20,9" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <IconFile :size="14" :stroke-width="1.8" class="file-icon" />
           <span class="file-name">{{ f.filename }}</span>
           <span class="file-size">{{ formatSize(f.sizeBytes) }}</span>
           <button v-if="!batchMode" class="file-delete" @click="removeFile(f.id, $event)" :title="t('deleteFile')">×</button>
@@ -278,18 +274,11 @@ function openShare() {
 
     <div class="sidebar-footer">
       <button @click="openAccount" class="logout-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15C18.3 16.8 16.3 18 14 18C10.7 18 8 15.3 8 12C8 8.7 10.7 6 14 6C16.3 6 18.3 7.2 19.4 9" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <IconKey :size="16" :stroke-width="1.8" />
         <span>{{ t('changePassword') }}</span>
       </button>
       <button @click="onLogout" class="logout-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-          <path d="M9 21H5C4.44772 21 4 20.5523 4 20V4C4 3.44772 4.44772 3 5 3H9" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M16 17L21 12L16 7" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M21 12H9" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <IconLogout :size="16" :stroke-width="1.8" />
         <span>{{ t('logout') }}</span>
       </button>
     </div>

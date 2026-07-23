@@ -10,6 +10,21 @@ import { FILE_TYPES, type FileExtension } from '../constants/fileTypes'
 import { LOCALE_STORAGE_KEY, type AppLocale } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { buildFileName, downloadFile, getMimeType, inferSupportedExtension } from '../utils/file'
+import {
+  IconMenu2,
+  IconFile,
+  IconUpload,
+  IconSun,
+  IconMoon,
+  IconShieldCheck,
+  IconWorld,
+  IconInfoCircle,
+  IconUser,
+  IconDeviceFloppy,
+  IconDownload,
+  IconTrash,
+  IconTypography
+} from '@tabler/icons-vue'
 
 const filesStore = useFilesStore()
 const authStore = useAuthStore()
@@ -667,19 +682,10 @@ function isTextMime(mime: string): boolean {
             :aria-label="t('files')"
             @click="ui.sidebarOpen = true"
           >
-            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M4 7H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M4 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M4 17H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            </svg>
+            <IconMenu2 :size="18" :stroke-width="1.5" />
           </button>
           <span class="brand-logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13.5 3H7.5C6.4 3 5.5 3.9 5.5 5V19C5.5 20.1 6.4 21 7.5 21H16.5C17.6 21 18.5 20.1 18.5 19V8L13.5 3Z" fill="white" fill-opacity="0.95" />
-              <path d="M13.5 3V7.2C13.5 7.64 13.86 8 14.3 8H18.5L13.5 3Z" fill="#c9c4ff" />
-              <path d="M8.5 12.5H15.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
-              <path d="M8.5 15.5H13.5" stroke="#5147e8" stroke-width="1.4" stroke-linecap="round" />
-            </svg>
+            <IconFile :size="16" :stroke-width="1.8" />
           </span>
           <span class="brand-name">{{ t('title') }}</span>
         </div>
@@ -692,33 +698,7 @@ function isTextMime(mime: string): boolean {
             :title="t('importSource')"
             @click="onUnifiedImport"
           >
-            <svg
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 14V4"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-              <path
-                d="M8.5 7.5L12 4L15.5 7.5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M4 14.5V17C4 18.1 4.9 19 6 19H18C19.1 19 20 18.1 20 17V14.5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-            </svg>
+            <IconUpload :size="18" :stroke-width="1.5" />
           </button>
 
           <button
@@ -728,39 +708,8 @@ function isTextMime(mime: string): boolean {
             :aria-pressed="themeMode === 'dark'"
             @click="toggleTheme"
           >
-            <svg
-              v-if="themeMode === 'light'"
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8" />
-              <path d="M12 2.5V5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M12 19V21.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M2.5 12H5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M19 12H21.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M5.3 5.3L7.1 7.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M16.9 16.9L18.7 18.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M16.9 7.1L18.7 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M5.3 18.7L7.1 16.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            </svg>
-            <svg
-              v-else
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M20.5 14.2C19.3 14.9 17.9 15.3 16.4 15.3C12 15.3 8.5 11.8 8.5 7.4C8.5 5.9 8.9 4.5 9.6 3.3C5.8 4.3 3 7.7 3 11.8C3 16.7 7 20.7 11.9 20.7C16 20.7 19.4 17.9 20.5 14.2Z"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <IconSun v-if="themeMode === 'light'" :size="18" :stroke-width="1.5" />
+            <IconMoon v-else :size="18" :stroke-width="1.5" />
           </button>
 
           <button
@@ -772,27 +721,7 @@ function isTextMime(mime: string): boolean {
             :aria-pressed="privacyMode"
             @click="togglePrivacyMode"
           >
-            <svg
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 3L5 6V11.3C5 15.8 7.9 19.9 12 21C16.1 19.9 19 15.8 19 11.3V6L12 3Z"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M9.3 12.2L11 13.9L14.8 10.1"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <IconShieldCheck :size="18" :stroke-width="1.5" />
           </button>
 
           <button
@@ -802,46 +731,7 @@ function isTextMime(mime: string): boolean {
             :aria-pressed="activeLocale === 'en-US'"
             @click="toggleLocale"
           >
-            <svg
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M3.6 9H20.4"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-              <path
-                d="M3.6 15H20.4"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-              <path
-                d="M12 3.2C14 5.4 15.2 8.5 15.2 12C15.2 15.5 14 18.6 12 20.8"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M12 3.2C10 5.4 8.8 8.5 8.8 12C8.8 15.5 10 18.6 12 20.8"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <IconWorld :size="18" :stroke-width="1.5" />
           </button>
 
           <button
@@ -851,26 +741,13 @@ function isTextMime(mime: string): boolean {
             :title="t('about')"
             @click="openAboutModal"
           >
-            <svg
-              class="icon-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
-              <path d="M12 10.2V16.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <circle cx="12" cy="7.2" r="1" fill="currentColor" />
-            </svg>
+            <IconInfoCircle :size="18" :stroke-width="1.5" />
           </button>
 
           <template v-if="!authStore.isLoggedIn">
             <span class="top-actions-divider" aria-hidden="true"></span>
             <button type="button" class="login-btn" @click="ui.openAuthModal()">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8" />
-              </svg>
+              <IconUser :size="16" :stroke-width="1.5" />
               <span>{{ t('login') }}</span>
             </button>
           </template>
@@ -923,17 +800,7 @@ function isTextMime(mime: string): boolean {
             class="btn-primary action-with-icon"
             @click="onSaveToCloud"
           >
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path d="M19 21H5C3.9 21 3 20.1 3 19V5C3 3.9 3.9 3 5 3H16L21 8V19C21 20.1 20.1 21 19 21Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M17 21V13H7V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M7 3V8H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <IconDeviceFloppy :size="16" :stroke-width="1.5" class="btn-icon" />
             <span>保存</span>
           </button>
 
@@ -942,58 +809,12 @@ function isTextMime(mime: string): boolean {
             :class="[authStore.isLoggedIn ? 'btn-outline' : 'btn-primary', 'action-with-icon']"
             @click="onDownload"
           >
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path d="M12 4V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path
-                d="M8.5 10.5L12 14L15.5 10.5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M5 16.5V18C5 19.1 5.9 20 7 20H17C18.1 20 19 19.1 19 18V16.5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-            </svg>
+            <IconDownload :size="16" :stroke-width="1.5" class="btn-icon" />
             <span>{{ t('download') }}</span>
           </button>
 
           <button type="button" class="btn-ghost action-with-icon" @click="onClearDraft">
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 7H20"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-              <path
-                d="M9 7V5.8C9 4.8 9.8 4 10.8 4H13.2C14.2 4 15 4.8 15 5.8V7"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-              <path
-                d="M7.2 7L8 18C8.1 19.1 9 20 10.1 20H13.9C15 20 15.9 19.1 16 18L16.8 7"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-            </svg>
+            <IconTrash :size="16" :stroke-width="1.5" class="btn-icon" />
             <span>{{ t('clearDraft') }}</span>
           </button>
         </div>
@@ -1003,19 +824,7 @@ function isTextMime(mime: string): boolean {
         <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
 
         <div class="font-size-slider" :aria-label="t('fontSize')">
-          <svg
-            class="font-slider-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path d="M3 7V5H15V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M9 5V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M4 19H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            <path d="M17 19V13L20 10L23 13V19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M19 17H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
+          <IconTypography :size="15" :stroke-width="1.5" class="font-slider-icon" />
           <input
             type="range"
             class="font-slider-input"
