@@ -23,7 +23,10 @@ import {
   IconDeviceFloppy,
   IconDownload,
   IconTrash,
-  IconTypography
+  IconTypography,
+  IconDotsVertical,
+  IconCheck,
+  IconLoader2
 } from '@tabler/icons-vue'
 
 const filesStore = useFilesStore()
@@ -51,6 +54,59 @@ const importModalRef = ref<HTMLElement | null>(null)
 const aboutModalRef = ref<HTMLElement | null>(null)
 const privacyModalRef = ref<HTMLElement | null>(null)
 const lastFocusedEl = ref<HTMLElement | null>(null)
+
+/* ---- 状态栏：光标 / 字数 / 保存状态 ---- */
+const cursorLine = ref(1)
+const cursorCol = ref(1)
+const saveState = ref<'saved' | 'saving' | 'local'>('saved')
+let saveStateTimer: number | null = null
+
+/* ---- ⋯ 溢出菜单 ---- */
+const showOverflowMenu = ref(false)
+const overflowMenuRef = ref<HTMLElement | null>(null)
+
+function onCursor(line: number, col: number): void {
+  cursorLine.value = line
+  cursorCol.value = col
+}
+
+const charCount = computed(() => content.value.length)
+const wordCount = computed(() => {
+  const trimmed = content.value.trim()
+  if (!trimmed) return 0
+  return (trimmed.match(/\S+/g) ?? []).length
+})
+
+const saveStateText = computed(() => {
+  if (saveState.value === 'saving') return t('saving')
+  if (saveState.value === 'local') return t('localSaved')
+  return t('saved')
+})
+
+function markSaving(): void {
+  if (authStore.isLoggedIn) {
+    saveState.value = 'saving'
+    if (saveStateTimer !== null) window.clearTimeout(saveStateTimer)
+    saveStateTimer = window.setTimeout(() => {
+      saveState.value = 'saved'
+    }, CLOUD_SAVE_DEBOUNCE_MS + 400)
+  } else {
+    saveState.value = 'local'
+  }
+}
+
+function toggleOverflowMenu(): void {
+  showOverflowMenu.value = !showOverflowMenu.value
+}
+
+function closeOverflowMenu(): void {
+  showOverflowMenu.value = false
+}
+
+function onOverflowTheme(): void {
+  toggleTheme()
+  closeOverflowMenu()
+}
 
 /* ---- 焦点管理工具 ---- */
 const FOCUSABLE_SELECTOR =
@@ -296,15 +352,18 @@ watch(() => filesStore.current, (newFile) => {
 
 watch([fileName, ext, content], () => {
   saveDraft()
+  markSaving()
 })
 
 onMounted(() => {
   document.documentElement.lang = activeLocale.value
   document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onGlobalKeydown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onGlobalKeydown)
   if (cloudSaveTimer !== null) window.clearTimeout(cloudSaveTimer)
 })
 
@@ -403,9 +462,18 @@ function closeAboutModal(): void {
 
 function onDocumentClick(event: MouseEvent): void {
   const target = event.target as Node | null
-  if (!target || !fileTypeMenuRef.value) return
-  if (!fileTypeMenuRef.value.contains(target)) {
+  if (!target) return
+  if (fileTypeMenuRef.value && !fileTypeMenuRef.value.contains(target)) {
     showFileTypeMenu.value = false
+  }
+  if (overflowMenuRef.value && !overflowMenuRef.value.contains(target)) {
+    showOverflowMenu.value = false
+  }
+}
+
+function onGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    closeOverflowMenu()
   }
 }
 
@@ -674,7 +742,7 @@ function isTextMime(mime: string): boolean {
   <div class="page">
     <main class="app">
       <header class="top-bar">
-        <div class="brand">
+        <div class="top-left">
           <button
             v-if="authStore.isLoggedIn"
             type="button"
@@ -688,6 +756,44 @@ function isTextMime(mime: string): boolean {
             <IconFile :size="16" :stroke-width="1.8" />
           </span>
           <span class="brand-name">{{ t('title') }}</span>
+          <span class="top-sep" aria-hidden="true"></span>
+
+          <div class="doc-fields">
+            <input
+              id="file-name"
+              v-model="fileName"
+              class="doc-name"
+              type="text"
+              :placeholder="t('fileNamePlaceholder')"
+              :aria-label="t('fileName')"
+            />
+
+            <div ref="fileTypeMenuRef" class="custom-select">
+              <button
+                id="file-type-trigger"
+                type="button"
+                class="select-trigger"
+                :aria-label="t('fileType')"
+                :aria-expanded="showFileTypeMenu"
+                @click="toggleFileTypeMenu"
+              >
+                .{{ ext }} ({{ fileTypeLabel(ext) }})
+              </button>
+
+              <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
+                <li v-for="item in FILE_TYPES" :key="item.ext">
+                  <button
+                    type="button"
+                    class="select-option"
+                    :class="{ active: ext === item.ext }"
+                    @click="selectFileType(item.ext)"
+                  >
+                    .{{ item.ext }} ({{ fileTypeLabel(item.ext) }})
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <div class="top-actions">
@@ -701,99 +807,6 @@ function isTextMime(mime: string): boolean {
             <IconUpload :size="18" :stroke-width="1.5" />
           </button>
 
-          <button
-            type="button"
-            class="icon-btn"
-            :aria-label="t('theme')"
-            :aria-pressed="themeMode === 'dark'"
-            @click="toggleTheme"
-          >
-            <IconSun v-if="themeMode === 'light'" :size="18" :stroke-width="1.5" />
-            <IconMoon v-else :size="18" :stroke-width="1.5" />
-          </button>
-
-          <button
-            type="button"
-            class="icon-btn"
-            :class="{ active: privacyMode }"
-            :aria-label="privacyMode ? t('privacyModeOn') : t('privacyModeOff')"
-            :title="privacyMode ? t('privacyModeOn') : t('privacyModeOff')"
-            :aria-pressed="privacyMode"
-            @click="togglePrivacyMode"
-          >
-            <IconShieldCheck :size="18" :stroke-width="1.5" />
-          </button>
-
-          <button
-            type="button"
-            class="icon-btn"
-            :aria-label="t('language')"
-            :aria-pressed="activeLocale === 'en-US'"
-            @click="toggleLocale"
-          >
-            <IconWorld :size="18" :stroke-width="1.5" />
-          </button>
-
-          <button
-            type="button"
-            class="icon-btn"
-            :aria-label="t('about')"
-            :title="t('about')"
-            @click="openAboutModal"
-          >
-            <IconInfoCircle :size="18" :stroke-width="1.5" />
-          </button>
-
-          <template v-if="!authStore.isLoggedIn">
-            <span class="top-actions-divider" aria-hidden="true"></span>
-            <button type="button" class="login-btn" @click="ui.openAuthModal()">
-              <IconUser :size="16" :stroke-width="1.5" />
-              <span>{{ t('login') }}</span>
-            </button>
-          </template>
-        </div>
-      </header>
-
-      <header class="toolbar">
-        <div class="doc-fields">
-          <input
-            id="file-name"
-            v-model="fileName"
-            class="doc-name"
-            type="text"
-            :placeholder="t('fileNamePlaceholder')"
-            :aria-label="t('fileName')"
-          />
-
-          <div ref="fileTypeMenuRef" class="custom-select">
-            <button
-              id="file-type-trigger"
-              type="button"
-              class="select-trigger"
-              :aria-label="t('fileType')"
-              :aria-expanded="showFileTypeMenu"
-              @click="toggleFileTypeMenu"
-            >
-              .{{ ext }} ({{ fileTypeLabel(ext) }})
-            </button>
-
-            <ul v-if="showFileTypeMenu" class="select-menu" role="listbox">
-              <li v-for="item in FILE_TYPES" :key="item.ext">
-                <button
-                  type="button"
-                  class="select-option"
-                  :class="{ active: ext === item.ext }"
-                  @click="selectFileType(item.ext)"
-                >
-                  .{{ item.ext }} ({{ fileTypeLabel(item.ext) }})
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="toolbar-actions">
-          <!-- 保存到云端按钮（登录后显示） -->
           <button
             v-if="authStore.isLoggedIn"
             type="button"
@@ -813,30 +826,107 @@ function isTextMime(mime: string): boolean {
             <span>{{ t('download') }}</span>
           </button>
 
-          <button type="button" class="btn-ghost action-with-icon" @click="onClearDraft">
-            <IconTrash :size="16" :stroke-width="1.5" class="btn-icon" />
-            <span>{{ t('clearDraft') }}</span>
-          </button>
+          <div ref="overflowMenuRef" class="overflow-menu">
+            <button
+              type="button"
+              class="icon-btn"
+              :aria-label="t('more')"
+              :aria-expanded="showOverflowMenu"
+              @click="toggleOverflowMenu"
+            >
+              <IconDotsVertical :size="18" :stroke-width="1.5" />
+            </button>
+            <div v-if="showOverflowMenu" class="overflow-dropdown" role="menu">
+              <button type="button" class="overflow-item" role="menuitem" @click="onOverflowTheme">
+                <IconSun v-if="themeMode === 'light'" :size="16" :stroke-width="1.5" />
+                <IconMoon v-else :size="16" :stroke-width="1.5" />
+                <span>{{ themeMode === 'light' ? t('darkMode') : t('lightMode') }}</span>
+              </button>
+              <button type="button" class="overflow-item" role="menuitem" @click="toggleLocale">
+                <IconWorld :size="16" :stroke-width="1.5" />
+                <span>{{ t('language') }}</span>
+              </button>
+              <button
+                type="button"
+                class="overflow-item"
+                role="menuitem"
+                :class="{ active: privacyMode }"
+                @click="togglePrivacyMode(); closeOverflowMenu()"
+              >
+                <IconShieldCheck :size="16" :stroke-width="1.5" />
+                <span>{{ privacyMode ? t('privacyModeOn') : t('privacyModeOff') }}</span>
+              </button>
+              <button
+                type="button"
+                class="overflow-item"
+                role="menuitem"
+                @click="openAboutModal(); closeOverflowMenu()"
+              >
+                <IconInfoCircle :size="16" :stroke-width="1.5" />
+                <span>{{ t('about') }}</span>
+              </button>
+              <div class="overflow-sep" aria-hidden="true"></div>
+              <button
+                type="button"
+                class="overflow-item danger"
+                role="menuitem"
+                @click="onClearDraft(); closeOverflowMenu()"
+              >
+                <IconTrash :size="16" :stroke-width="1.5" />
+                <span>{{ t('clearDraft') }}</span>
+              </button>
+            </div>
+          </div>
+
+          <template v-if="!authStore.isLoggedIn">
+            <span class="top-actions-divider" aria-hidden="true"></span>
+            <button type="button" class="login-btn" @click="ui.openAuthModal()">
+              <IconUser :size="16" :stroke-width="1.5" />
+              <span>{{ t('login') }}</span>
+            </button>
+          </template>
         </div>
       </header>
 
       <section class="editor-wrap">
-        <CodeEditor v-model="content" :ext="ext" :font-size="editorFontSize" />
-
-        <div class="font-size-slider" :aria-label="t('fontSize')">
-          <IconTypography :size="15" :stroke-width="1.5" class="font-slider-icon" />
-          <input
-            type="range"
-            class="font-slider-input"
-            :min="MIN_FONT_SIZE"
-            :max="MAX_FONT_SIZE"
-            :value="editorFontSize"
-            :aria-label="t('fontSize')"
-            @input="editorFontSize = Number(($event.target as HTMLInputElement).value)"
-          />
-          <span class="font-slider-value">{{ editorFontSize }}</span>
-        </div>
+        <CodeEditor
+          v-model="content"
+          :ext="ext"
+          :font-size="editorFontSize"
+          @cursor="onCursor"
+        />
       </section>
+
+      <footer class="status-bar">
+        <div class="status-left">
+          <span class="status-item">Ln {{ cursorLine }}, Col {{ cursorCol }}</span>
+          <span class="status-meta">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-item">{{ wordCount }} {{ t('words') }} · {{ charCount }} {{ t('chars') }}</span>
+          </span>
+        </div>
+        <div class="status-right">
+          <span class="status-save" :class="`state-${saveState}`">
+            <IconLoader2 v-if="saveState === 'saving'" :size="13" :stroke-width="2" class="spin" />
+            <IconCheck v-else :size="13" :stroke-width="2" />
+            <span>{{ saveStateText }}</span>
+          </span>
+          <span class="status-sep" aria-hidden="true"></span>
+          <div class="status-font">
+            <IconTypography :size="14" :stroke-width="1.5" class="status-font-icon" />
+            <input
+              type="range"
+              class="font-slider-input"
+              :min="MIN_FONT_SIZE"
+              :max="MAX_FONT_SIZE"
+              :value="editorFontSize"
+              :aria-label="t('fontSize')"
+              @input="editorFontSize = Number(($event.target as HTMLInputElement).value)"
+            />
+            <span class="font-slider-value">{{ editorFontSize }}</span>
+          </div>
+        </div>
+      </footer>
     </main>
 
     <div

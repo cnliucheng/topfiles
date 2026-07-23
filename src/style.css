@@ -224,10 +224,26 @@ body,
   text-overflow: ellipsis;
 }
 
+.top-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-sep {
+  width: 1px;
+  height: 20px;
+  flex: 0 0 auto;
+  background: var(--border);
+}
+
 .top-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .top-actions-divider {
@@ -310,18 +326,7 @@ body,
   display: none;
 }
 
-/* ========== 工具栏（文档条） ========== */
-.toolbar {
-  flex-shrink: 0;
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
-}
-
+/* ========== 文档字段（合并进顶栏） ========== */
 .doc-fields {
   flex: 1;
   min-width: 0;
@@ -332,9 +337,10 @@ body,
 
 /* Notion 式无边框文档名 */
 .doc-name {
-  flex: 0 1 300px;
-  min-width: 100px;
-  height: 36px;
+  flex: 1 1 220px;
+  max-width: 460px;
+  min-width: 110px;
+  height: 34px;
   padding: 0 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -439,14 +445,7 @@ body,
   font-weight: 600;
 }
 
-/* ========== 工具栏按钮分层：主 / 次 / 幽灵 ========== */
-.toolbar-actions {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* ========== 按钮分层：主 / 次 / 幽灵 ========== */
 .action-with-icon {
   display: inline-flex;
   align-items: center;
@@ -536,34 +535,144 @@ body,
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-/* ========== 字号滑块（编辑器右下角，药丸形） ========== */
-.font-size-slider {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
+/* ========== 底部状态栏 ========== */
+.status-bar {
+  flex-shrink: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-sub);
+  font-size: 12px;
+  user-select: none;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.status-item {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-dot,
+.status-sep {
+  width: 1px;
+  height: 12px;
+  flex: 0 0 auto;
+  background: var(--border);
+}
+
+.status-save {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.status-save.state-saving {
+  color: var(--primary-text);
+}
+
+.status-save.state-local,
+.status-save.state-saved {
   color: var(--text-sub);
-  opacity: 0.9;
-  z-index: 10;
 }
 
-.font-size-slider:hover {
-  opacity: 1;
-  box-shadow: var(--shadow-lg);
+.status-font {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
 }
 
-.font-slider-icon {
+.status-font-icon {
   width: 14px;
   height: 14px;
   display: block;
   flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========== 顶栏 ⋯ 溢出菜单 ========== */
+.overflow-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.overflow-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 300;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.overflow-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+  text-align: left;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.overflow-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.overflow-item.active {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.overflow-item.danger {
+  color: var(--danger);
+}
+
+.overflow-item.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.overflow-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--border);
 }
 
 .font-slider-input {
@@ -970,6 +1079,10 @@ body,
     padding: 0 10px;
   }
 
+  .top-left {
+    gap: 8px;
+  }
+
   .mobile-files-btn {
     display: inline-flex;
   }
@@ -988,28 +1101,56 @@ body,
     justify-content: center;
   }
 
-  .toolbar {
-    flex-wrap: wrap;
-    padding: 8px 10px;
-    gap: 8px;
+  .doc-fields {
+    gap: 6px;
   }
 
-  .doc-fields {
-    flex: 1 1 100%;
+  .custom-select {
+    display: none;
   }
 
   .doc-name {
     flex: 1 1 auto;
+    min-width: 60px;
+    max-width: none;
   }
 
-  .toolbar-actions {
-    width: 100%;
-    justify-content: flex-end;
+  .top-actions .action-with-icon span {
+    display: none;
   }
 
-  .font-size-slider {
-    right: 10px;
-    bottom: 10px;
+  .status-bar {
+    font-size: 11px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  /* 窄屏隐藏字数统计，保留行/列与保存状态 */
+  .status-meta {
+    display: none;
+  }
+
+  .status-right {
+    gap: 8px;
+  }
+
+  .font-slider-value {
+    min-width: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-name {
+    display: none;
+  }
+
+  .top-sep {
+    display: none;
+  }
+
+  /* 极小屏隐藏字号滑块，仅保留行/列与保存状态 */
+  .status-font {
+    display: none;
   }
 }
 

@@ -23,6 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  'cursor': [line: number, col: number]
 }>()
 
 const editorRoot = ref<HTMLDivElement | null>(null)
@@ -204,6 +205,11 @@ onMounted(() => {
         if (update.docChanged) {
           emit('update:modelValue', update.state.doc.toString())
         }
+        if (update.selectionSet || update.docChanged || update.focusChanged) {
+          const head = update.state.selection.main.head
+          const lineInfo = update.state.doc.lineAt(head)
+          emit('cursor', lineInfo.number, head - lineInfo.from + 1)
+        }
       })
     ]
   })
@@ -212,6 +218,14 @@ onMounted(() => {
     state,
     parent: editorRoot.value
   })
+
+  // 初始化光标位置（仅第一行第一列时也需要上报一次）
+  const initLineInfo = editorView.state.doc.lineAt(editorView.state.selection.main.head)
+  emit(
+    'cursor',
+    initLineInfo.number,
+    editorView.state.selection.main.head - initLineInfo.from + 1
+  )
 
   // 绑定右键菜单
   editorView.dom.addEventListener('contextmenu', onContextMenu)
