@@ -19,6 +19,13 @@ dist-ssr
 *.config.js.timestamp-*.mjs
 *.config.ts.timestamp-*.mjs
 
+# SQLite databases (runtime + local dev)
+*.db
+*.sqlite
+*.sqlite3
+server/data.db
+server/local-dev.db
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

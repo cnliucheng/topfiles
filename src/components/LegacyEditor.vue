@@ -403,11 +403,12 @@ async function onSaveToCloud(): Promise<void> {
       })
       await dialog.alert('已保存到云端', '保存成功')
     } else {
-      // 创建新文件
+      // 创建新文件（可在当前选中的文件夹内）
       await filesStore.create({
         filename: fullFilename,
         content: content.value,
-        mimeType: getMimeType(ext.value)
+        mimeType: getMimeType(ext.value),
+        ...(filesStore.currentFolderId != null ? { folderId: filesStore.currentFolderId } : {})
       })
       await dialog.alert('已创建云端文件', '创建成功')
     }

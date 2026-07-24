@@ -21,6 +21,14 @@ const mockFile: FileMeta = {
   sizeBytes: 100,
   createdAt: '2025-01-01T00:00:00Z',
   updatedAt: '2025-01-02T00:00:00Z',
+  folderId: null,
+}
+
+const mockFolder = {
+  id: 1,
+  name: 'Docs',
+  parentId: null,
+  createdAt: '2025-01-01T00:00:00Z',
 }
 
 import type { FileMeta } from '../files'
@@ -28,7 +36,7 @@ import type { FileMeta } from '../files'
 describe('files store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('starts empty', () => {
@@ -108,5 +116,61 @@ describe('files store', () => {
     expect(files.list).toEqual([])
     expect(files.current).toBeNull()
     expect(files.error).toBeNull()
+  })
+})
+
+describe('folders', () => {
+  it('starts with no folders', () => {
+    const files = useFilesStore()
+    expect(files.folders).toEqual([])
+    expect(files.currentFolderId).toBeNull()
+  })
+
+  it('fetchFolders populates folders', async () => {
+    const files = useFilesStore()
+    vi.mocked(api.get).mockResolvedValueOnce({ data: [mockFolder] } as any)
+    await files.fetchFolders()
+    expect(files.folders).toHaveLength(1)
+    expect(files.folders[0].name).toBe('Docs')
+  })
+
+  it('createFolder adds to folders on success', async () => {
+    const files = useFilesStore()
+    files.folders = []
+    files.error = null
+    vi.mocked(api.post).mockResolvedValue({ data: mockFolder } as any)
+    const result = await files.createFolder({ name: 'Docs' })
+    expect(files.folders).toHaveLength(1)
+    expect(result.name).toBe('Docs')
+  })
+
+  it('createFolder does not add on failure', async () => {
+    const files = useFilesStore()
+    files.folders = []
+    files.error = null
+    vi.mocked(api.post).mockRejectedValue({
+      response: { data: { error: { message: 'conflict' } } },
+    } as any)
+    await expect(files.createFolder({ name: 'Docs' })).rejects.toBeDefined()
+    expect(files.folders).toHaveLength(0)
+    expect(files.error).toBe('conflict')
+  })
+
+  it('deleteFolder removes folder and resets currentFolderId', async () => {
+    const files = useFilesStore()
+    files.folders = [{ ...mockFolder }]
+    files.currentFolderId = mockFolder.id
+    vi.mocked(api.delete).mockResolvedValue({} as any)
+    await files.deleteFolder(mockFolder.id)
+    expect(files.folders).toHaveLength(0)
+    expect(files.currentFolderId).toBeNull()
+  })
+
+  it('moveFile updates the file folderId', async () => {
+    const files = useFilesStore()
+    files.list = [{ ...mockFile }]
+    vi.mocked(api.post).mockResolvedValue({ data: { ...mockFile, folderId: 5 } } as any)
+    await files.moveFile(1, 5)
+    expect(files.list[0].folderId).toBe(5)
   })
 })

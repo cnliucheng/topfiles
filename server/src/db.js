@@ -24,6 +24,24 @@ const migrations = [
 
       CREATE INDEX IF NOT EXISTS idx_files_updated ON files(updated_at DESC);
     `
+  },
+  {
+    version: 2,
+    description: 'Add folders + file.folder_id',
+    up: `
+      CREATE TABLE IF NOT EXISTS folders (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL COLLATE NOCASE,
+        parent_id  INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+
+      ALTER TABLE files ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
+    `
   }
 ]
 

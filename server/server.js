@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { createDb } from './src/db.js'
 import { registerAuthRoutes } from './src/auth/routes.js'
 import { registerFileRoutes } from './src/files/routes.js'
+import { registerFolderRoutes } from './src/folders/routes.js'
 import { registerShareRoutes } from './src/share/routes.js'
 import { matchRoute } from './src/utils/router.js'
 import { serveStatic } from './src/utils/static.js'
@@ -41,6 +42,7 @@ const rateLimit = new RateLimiter()
 const routes = {}
 registerAuthRoutes(routes, { db, secret: JWT_SECRET, cookieSecure: COOKIE_SECURE, rateLimit, trustProxy: TRUST_PROXY })
 registerFileRoutes(routes, { db, secret: JWT_SECRET })
+registerFolderRoutes(routes, { db, secret: JWT_SECRET })
 registerShareRoutes(routes, { db, rateLimit, trustProxy: TRUST_PROXY })
 
 const server = createServer(async (req, res) => {
